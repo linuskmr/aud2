@@ -4,7 +4,7 @@ Algorithms teached at my university in the course "Algorithms and Data Structure
 
 Currently supported problems/algorithms:
 
-- Fractional Knapsack
-  - Solving via Greedy Algorithm
-- Subset Sum
-  - Solving via Dynamic Programming
+- [Fractional Knapsack](https://en.wikipedia.org/wiki/Continuous_knapsack_problem)
+  - Solving via [Greedy Algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm)
+- [Subset Sum](https://en.wikipedia.org/wiki/Subset_sum_problem)
+  - Solving via [Dynamic Programming](https://en.wikipedia.org/wiki/Dynamic_programming)
