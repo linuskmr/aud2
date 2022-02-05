@@ -1,4 +1,4 @@
-use aud2::knapsack::{fractional_knapsack, Item, KnapsackItem};
+use aud2::knapsack::{fractional_knapsack, Item, PackedItem};
 use aud2::subset_sum::subset_sum;
 use std::borrow::Borrow;
 
@@ -110,7 +110,7 @@ fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
     let total_profit: f64 = chosen_items
         .borrow()
         .into_iter()
-        .map(KnapsackItem::effective_profit)
+        .map(PackedItem::effective_profit)
         .sum();
     println!("total_profit={}", total_profit);
 }
