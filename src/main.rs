@@ -1,4 +1,6 @@
-use aud2::fractional_knapsack::{fractional_knapsack, ChosenItem, Item};
+use aud2::fractional_knapsack::fractional_knapsack;
+use aud2::knapsack::{Item, KnapsackItem};
+use std::borrow::Borrow;
 
 fn main() {
     init_logger();
@@ -94,6 +96,7 @@ fn main() {
     println!("Hello, world!");
 }
 
+/// Calls the library function fractional_knapsack() and prints its results.
 fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
     let chosen_items = fractional_knapsack(&items, weight_capacity);
     for chosen_item in &chosen_items {
@@ -102,10 +105,17 @@ fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
             chosen_item.item.id, chosen_item.take_fraction
         );
     }
-    let total_profit: f64 = chosen_items.iter().map(ChosenItem::effective_profit).sum();
+    let total_profit: f64 = chosen_items
+        .borrow()
+        .into_iter()
+        .map(KnapsackItem::effective_profit)
+        .sum();
     println!("total_profit={}", total_profit);
+
+    println!("{:#?}", chosen_items);
 }
 
+/// Initialize the logger.
 fn init_logger() {
     simple_logger::SimpleLogger::new().init().unwrap();
 }
