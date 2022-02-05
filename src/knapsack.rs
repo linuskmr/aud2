@@ -6,7 +6,7 @@ use std::fmt;
 
 /// Knapsack is a backpack with limited size or weight capacity.
 #[derive(Default, PartialEq)]
-pub struct Knapsack<'a>(Vec<KnapsackItem<'a>>);
+pub struct Knapsack<'a>(Vec<PackedItem<'a>>);
 
 impl<'a> Knapsack<'a> {
     /// Create a new empty knapsack.
@@ -15,7 +15,7 @@ impl<'a> Knapsack<'a> {
     }
 
     /// Insert a new item into the knapsack.
-    pub fn insert(&mut self, item: KnapsackItem<'a>) {
+    pub fn insert(&mut self, item: PackedItem<'a>) {
         self.0.push(item);
     }
 }
@@ -28,8 +28,8 @@ impl fmt::Debug for Knapsack<'_> {
 }
 
 // Allow Vec<KnapsackItem> to be converted into a knapsack.
-impl<'a> From<Vec<KnapsackItem<'a>>> for Knapsack<'a> {
-    fn from(knapsack_vec: Vec<KnapsackItem<'a>>) -> Self {
+impl<'a> From<Vec<PackedItem<'a>>> for Knapsack<'a> {
+    fn from(knapsack_vec: Vec<PackedItem<'a>>) -> Self {
         Self(knapsack_vec)
     }
 }
@@ -60,14 +60,14 @@ impl Item {
 
 /// A item that was put inside a [Knapsack].
 #[derive(Debug, PartialEq, Clone)]
-pub struct KnapsackItem<'a> {
+pub struct PackedItem<'a> {
     /// The original item.
     pub item: &'a Item,
     /// A number between 0.0 and 1.0 indicating how much of the item was put into the knapsack.
     pub take_fraction: f64,
 }
 
-impl<'a> KnapsackItem<'a> {
+impl<'a> PackedItem<'a> {
     /// Calculates the weight this item weights considering its take_fraction, i.e. partial packed items.
     pub fn effective_weight(&self) -> f64 {
         (self.item.weight as f64) * self.take_fraction
@@ -81,8 +81,8 @@ impl<'a> KnapsackItem<'a> {
 
 // Allow knapsacks to be iterated over by forwarding the iterator implementation to the underlying vec.
 impl<'a> IntoIterator for &'a Knapsack<'a> {
-    type Item = &'a KnapsackItem<'a>;
-    type IntoIter = core::slice::Iter<'a, KnapsackItem<'a>>;
+    type Item = &'a PackedItem<'a>;
+    type IntoIter = core::slice::Iter<'a, PackedItem<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -160,7 +160,7 @@ pub fn fractional_knapsack(items: &[Item], weight_capacity: u64) -> Knapsack {
         // item.
         let take_fraction = ((available_knapsack_weight as f64) / (item.weight as f64)).min(1.0);
         // Add item to knapsack
-        let knapsack_item = KnapsackItem {
+        let knapsack_item = PackedItem {
             item,
             take_fraction,
         };
@@ -265,31 +265,31 @@ mod test {
         let weight_capacity = 120;
         let actual_chosen_items = fractional_knapsack(&items, weight_capacity);
         let expected_chosen_items = Knapsack::from(vec![
-            KnapsackItem {
+            PackedItem {
                 item: &items[5],
                 take_fraction: 1.0,
             },
-            KnapsackItem {
+            PackedItem {
                 item: &items[3],
                 take_fraction: 1.0,
             },
-            KnapsackItem {
+            PackedItem {
                 item: &items[12],
                 take_fraction: 1.0,
             },
-            KnapsackItem {
+            PackedItem {
                 item: &items[11],
                 take_fraction: 1.0,
             },
-            KnapsackItem {
+            PackedItem {
                 item: &items[2],
                 take_fraction: 1.0,
             },
-            KnapsackItem {
+            PackedItem {
                 item: &items[8],
                 take_fraction: 1.0,
             },
-            KnapsackItem {
+            PackedItem {
                 item: &items[14],
                 take_fraction: 0.6,
             },
