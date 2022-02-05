@@ -1,101 +1,49 @@
-use aud2::knapsack::{fractional_knapsack, Item, PackedItem};
-use aud2::subset_sum::subset_sum;
+use aud2::knapsack::{fractional_knapsack, maximum_knapsack, Item, PackedItem};
+use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use std::borrow::Borrow;
 
 fn main() {
     init_logger();
 
-    let items = {
-        vec![
-            Item {
-                id: 1,
-                profit: 3,
-                weight: 20,
-            },
-            Item {
-                id: 2,
-                profit: 3,
-                weight: 32,
-            },
-            Item {
-                id: 3,
-                profit: 10,
-                weight: 40,
-            },
-            Item {
-                id: 4,
-                profit: 5,
-                weight: 8,
-            },
-            Item {
-                id: 5,
-                profit: 2,
-                weight: 16,
-            },
-            Item {
-                id: 6,
-                profit: 4,
-                weight: 4,
-            },
-            Item {
-                id: 7,
-                profit: 2,
-                weight: 32,
-            },
-            Item {
-                id: 8,
-                profit: 9,
-                weight: 40,
-            },
-            Item {
-                id: 9,
-                profit: 2,
-                weight: 8,
-            },
-            Item {
-                id: 10,
-                profit: 5,
-                weight: 32,
-            },
-            Item {
-                id: 11,
-                profit: 3,
-                weight: 28,
-            },
-            Item {
-                id: 12,
-                profit: 9,
-                weight: 20,
-            },
-            Item {
-                id: 13,
-                profit: 10,
-                weight: 16,
-            },
-            Item {
-                id: 14,
-                profit: 3,
-                weight: 20,
-            },
-            Item {
-                id: 15,
-                profit: 10,
-                weight: 40,
-            },
-            Item {
-                id: 16,
-                profit: 4,
-                weight: 24,
-            },
-        ]
-    };
-    let weight_capacity = 120;
+    let items = [
+        Item {
+            id: 1,
+            profit: 6,
+            weight: 2,
+        },
+        Item {
+            id: 2,
+            profit: 5,
+            weight: 3,
+        },
+        Item {
+            id: 3,
+            profit: 8,
+            weight: 6,
+        },
+        Item {
+            id: 4,
+            profit: 9,
+            weight: 7,
+        },
+        Item {
+            id: 5,
+            profit: 6,
+            weight: 5,
+        },
+        Item {
+            id: 6,
+            profit: 7,
+            weight: 9,
+        },
+        Item {
+            id: 7,
+            profit: 3,
+            weight: 4,
+        },
+    ];
 
-    // fractional_knapsack_autoprint(&items, weight_capacity);
-
-    subset_sum_autoprint(&[7, 13, 17, 20, 29, 31, 31, 35, 57]);
-
-    println!("Hello, world!");
+    maximum_knapsack_autoprint(&items, 9);
 }
 
 /// Calls the library function fractional_knapsack() and prints its results.
@@ -116,12 +64,32 @@ fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
 }
 
 fn subset_sum_autoprint(numbers: &[u64]) {
-    let table = subset_sum(numbers);
-    /*for (i, row) in table.into_iter().enumerate() {
+    let table = subset_sum_row_sum_set(numbers);
+    for (i, row) in table.iter().enumerate() {
         println!("i={}: {:?}", i, row);
-    }*/
+    }
+}
+
+fn subset_sum2_autoprint(numbers: &[u64]) {
+    let table = subset_sum_full_bool_table(numbers);
+    for (i, row) in table.iter().enumerate() {
+        let reachable_sums: Vec<_> = row
+            .iter()
+            .enumerate()
+            .filter(|(_, cell)| **cell == true)
+            .map(|(index, _)| index)
+            .collect();
+        println!("i={}: {:?}", i, reachable_sums);
+    }
 
     println!("{:?}", table);
+}
+
+fn maximum_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
+    let table = maximum_knapsack(items, weight_capacity);
+    for (i, row) in table.iter().enumerate() {
+        println!("i={}: {:?}", i, row);
+    }
 }
 
 /// Initialize the logger.

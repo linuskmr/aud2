@@ -173,6 +173,78 @@ pub fn fractional_knapsack(items: &[Item], weight_capacity: u64) -> Knapsack {
     knapsack
 }
 
+/// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
+/// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming).
+pub fn maximum_knapsack(items: &[Item], weight_capacity: u64) -> Vec<Vec<u64>> {
+    // table is a list of iterations. Each iteration contains a set of sum that are producible by using (some of)
+    // the first i numbers.
+    let mut table: Vec<Vec<u64>> = Vec::with_capacity(items.len());
+    if items.len() == 0 {
+        return table;
+    }
+    // The number 0 can be produced with the first 0 numbers. Because we want to examine total_sum itself,
+    // it must be included in the vec. Therefore we must add 1, so that table[0][weight_capacity] is defined.
+    table.push(vec![0u64; (weight_capacity + 1) as usize]);
+
+    // Examine which numbers are producible by using a new number from the number list.
+    for (new_item_index, new_item) in items.iter().enumerate() {
+        let last_row = table.last().expect("Table always contains one row");
+        let mut new_row = Vec::with_capacity(last_row.len());
+        // Create the new row by inspecting the old one and inspect if improvement can be made by using the new item.
+        for (current_weight_capacity, old_profit) in last_row.iter().enumerate() {
+            // Why new_item_index + 1? The first new item corresponds to row=1.
+            let (row, column) = (new_item_index + 1, current_weight_capacity);
+            // This is the profit we insert into this cell. This is determined by the if-else blocks below
+            let profit: u64;
+            // How much profit is possible with the new item?
+            let new_reachable_profit = {
+                // How much capacity would be free, if we use new_item here?
+                let free_weight_capacity =
+                    current_weight_capacity.saturating_sub(new_item.weight as usize);
+                // What profit can be reached with the capacity left?
+                let profit_reachable_with_left_weight = last_row[free_weight_capacity];
+                // In the end, we can get the profit of the new item + the profit reachable with the weight left
+                new_item.profit + profit_reachable_with_left_weight
+            };
+            log::info!(
+                "New item id={}, weight={}, with current_weight_capacity={}, new_reachable_profit={}",
+                new_item.id,
+                new_item.weight,
+                current_weight_capacity,
+                new_reachable_profit
+            );
+            if new_item.weight > current_weight_capacity as u64 {
+                // Item is too expensive / weights to much
+                profit = *old_profit;
+                log::debug!(
+                    "New item in row={} at column={} is too expensive",
+                    row,
+                    column
+                );
+            } else if new_reachable_profit <= *old_profit {
+                // Item brings no improvement
+                profit = *old_profit;
+                log::debug!(
+                    "New item in row={} at column={} brings no improvement",
+                    row,
+                    column
+                );
+            } else {
+                // We can afford the item and it brings improvement
+                profit = new_reachable_profit;
+                log::debug!(
+                    "New item in row={} at index={} is affordable and brings improvement",
+                    row,
+                    column
+                );
+            }
+            new_row.push(profit);
+        }
+        table.push(new_row);
+    }
+    table
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -295,5 +367,59 @@ mod test {
             },
         ]);
         assert_eq!(actual_chosen_items, expected_chosen_items);
+    }
+
+    #[test]
+    fn test_maximum_knapsack() {
+        let items = [
+            Item {
+                id: 1,
+                profit: 6,
+                weight: 2,
+            },
+            Item {
+                id: 2,
+                profit: 5,
+                weight: 3,
+            },
+            Item {
+                id: 3,
+                profit: 8,
+                weight: 6,
+            },
+            Item {
+                id: 4,
+                profit: 9,
+                weight: 7,
+            },
+            Item {
+                id: 5,
+                profit: 6,
+                weight: 5,
+            },
+            Item {
+                id: 6,
+                profit: 7,
+                weight: 9,
+            },
+            Item {
+                id: 7,
+                profit: 3,
+                weight: 4,
+            },
+        ];
+        let weight_capacity = 9;
+        let actual_table = maximum_knapsack(&items, weight_capacity);
+        let expected_table = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 6, 6, 6, 6, 6, 6, 6, 6],
+            [0, 0, 6, 6, 6, 11, 11, 11, 11, 11],
+            [0, 0, 6, 6, 6, 11, 11, 11, 14, 14],
+            [0, 0, 6, 6, 6, 11, 11, 11, 14, 15],
+            [0, 0, 6, 6, 6, 11, 11, 12, 14, 15],
+            [0, 0, 6, 6, 6, 11, 11, 12, 14, 15],
+            [0, 0, 6, 6, 6, 11, 11, 12, 14, 15],
+        ];
+        assert_eq!(actual_table, expected_table);
     }
 }
