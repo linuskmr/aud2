@@ -3,8 +3,8 @@ use std::collections::HashSet;
 /// Solves the [subset sum problem](https://en.wikipedia.org/wiki/Subset_sum_problem) via
 /// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming).
 pub fn subset_sum(numbers: &[u64]) -> Vec<HashSet<u64>> {
-    // table is a list of iterations. Each iteration contains a set of numbers that is producible with the first i
-    // numbers.
+    // table is a list of iterations. Each iteration contains a set of sum that are producible by using (some of)
+    // the first i numbers.
     let mut table: Vec<HashSet<u64>> = Vec::with_capacity(numbers.len());
     if numbers.len() == 0 {
         return table;
