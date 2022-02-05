@@ -1,49 +1,17 @@
+mod cli;
+
 use aud2::knapsack::{fractional_knapsack, maximum_knapsack, Item, PackedItem};
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use std::borrow::Borrow;
+use std::fs;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 fn main() {
     init_logger();
 
-    let items = [
-        Item {
-            id: 1,
-            profit: 6,
-            weight: 2,
-        },
-        Item {
-            id: 2,
-            profit: 5,
-            weight: 3,
-        },
-        Item {
-            id: 3,
-            profit: 8,
-            weight: 6,
-        },
-        Item {
-            id: 4,
-            profit: 9,
-            weight: 7,
-        },
-        Item {
-            id: 5,
-            profit: 6,
-            weight: 5,
-        },
-        Item {
-            id: 6,
-            profit: 7,
-            weight: 9,
-        },
-        Item {
-            id: 7,
-            profit: 3,
-            weight: 4,
-        },
-    ];
-
-    maximum_knapsack_autoprint(&items, 9);
+    let cli_args: cli::CliArgs = argh::from_env();
+    println!("{:#?}", cli_args);
 }
 
 /// Calls the library function fractional_knapsack() and prints its results.
@@ -90,6 +58,47 @@ fn maximum_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
     for (i, row) in table.iter().enumerate() {
         println!("i={}: {:?}", i, row);
     }
+}
+
+/// Transpose a Vec<Vec<T>>, i.e. flip rows and columns. All inner Vec's must have the same length.
+/// From https://stackoverflow.com/a/64499219/14350146
+fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    if v.is_empty() {
+        // No work to do for an empty vec
+        return v;
+    };
+    // All inner vec's must have the same length!
+    let len = v[0].len();
+    // Get iterators from all inner vec
+    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
+    (0..len)
+        .map(|_| {
+            // Drive each iterator one forward and collect the results
+            iters
+                .iter_mut()
+                .map(|n| n.next().unwrap())
+                .collect::<Vec<T>>()
+        })
+        .collect()
+}
+
+/// Flips / transposes a CSV. This allows converting CSVs build from left to right to a normal CSV.
+fn flip_csv(csv: String) -> String {
+    let lines: Vec<Vec<&str>> = csv
+        .lines() // Split the lines
+        // Split at comma
+        .map(|line| line.split(',').collect())
+        .collect();
+    // Transpose lines and columns
+    let transposed_lines = transpose(lines);
+    // Convert transposed lines back to a String
+    transposed_lines
+        .into_iter()
+        // Join columns with comma
+        .map(|line| line.join(","))
+        .collect::<Vec<_>>()
+        // And join lines with newline
+        .join("\n")
 }
 
 /// Initialize the logger.
