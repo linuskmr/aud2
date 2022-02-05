@@ -1,5 +1,5 @@
-use aud2::fractional_knapsack::fractional_knapsack;
-use aud2::knapsack::{Item, KnapsackItem};
+use aud2::knapsack::{fractional_knapsack, Item, KnapsackItem};
+use aud2::subset_sum::subset_sum;
 use std::borrow::Borrow;
 
 fn main() {
@@ -91,7 +91,9 @@ fn main() {
     };
     let weight_capacity = 120;
 
-    fractional_knapsack_autoprint(&items, weight_capacity);
+    // fractional_knapsack_autoprint(&items, weight_capacity);
+
+    subset_sum_autoprint(&[7, 13, 17, 20, 29, 31, 31, 35, 57]);
 
     println!("Hello, world!");
 }
@@ -111,8 +113,15 @@ fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
         .map(KnapsackItem::effective_profit)
         .sum();
     println!("total_profit={}", total_profit);
+}
 
-    println!("{:#?}", chosen_items);
+fn subset_sum_autoprint(numbers: &[u64]) {
+    let table = subset_sum(numbers);
+    /*for (i, row) in table.into_iter().enumerate() {
+        println!("i={}: {:?}", i, row);
+    }*/
+
+    println!("{:?}", table);
 }
 
 /// Initialize the logger.

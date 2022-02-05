@@ -6,3 +6,5 @@ Currently supported problems/algorithms:
 
 - Fractional Knapsack
   - Solving via Greedy Algorithm
+- Subset Sum
+  - Solving via Dynamic Programming

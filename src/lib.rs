@@ -1,2 +1,2 @@
-pub mod fractional_knapsack;
 pub mod knapsack;
+pub mod subset_sum;
