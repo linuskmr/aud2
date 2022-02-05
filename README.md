@@ -8,6 +8,8 @@ Currently supported problems/algorithms:
   - Solving via [Greedy Algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm)
 - [Subset Sum](https://en.wikipedia.org/wiki/Subset_sum_problem)
   - Solving via [Dynamic Programming](https://en.wikipedia.org/wiki/Dynamic_programming)
+- [Maximum Knapsack](https://en.m.wikipedia.org/wiki/Knapsack_problem)
+  - Solving via [Dynamic Programming](https://en.wikipedia.org/wiki/Dynamic_programming)
 
 ## Installation
 
