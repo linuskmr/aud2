@@ -1,3 +1,8 @@
+//! Solving of the [subset sum problem](https://en.wikipedia.org/wiki/Subset_sum_problem).
+//!
+//! From Wikipedia: "In its most general formulation, there is a multiset S of integers and a target-sum T, and the
+//! question is to decide whether any subset of the integers sum to precisely T."
+
 use std::collections::HashSet;
 use std::ops::Not;
 

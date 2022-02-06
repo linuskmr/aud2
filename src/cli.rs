@@ -1,5 +1,4 @@
 use argh::FromArgs;
-use std::path::{Path, PathBuf};
 
 /// AuD2: Algorithms from "Algorithms and Data Structures 2" implemented in Rust.
 #[derive(FromArgs, PartialEq, Debug)]
