@@ -1,3 +1,4 @@
+use fraction::Fraction;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::fmt;
@@ -64,18 +65,18 @@ pub struct PackedItem<'a> {
     /// The original item.
     pub item: &'a Item,
     /// A number between 0.0 and 1.0 indicating how much of the item was put into the knapsack.
-    pub take_fraction: f64,
+    pub take_fraction: Fraction,
 }
 
 impl<'a> PackedItem<'a> {
     /// Calculates the weight this item weights considering its take_fraction, i.e. partial packed items.
-    pub fn effective_weight(&self) -> f64 {
-        (self.item.weight as f64) * self.take_fraction
+    pub fn effective_weight(&self) -> Fraction {
+        Fraction::from(self.item.weight) * self.take_fraction
     }
 
     /// Calculates the profit this items gives considering its take_fraction, i.e partial packed items.
-    pub fn effective_profit(&self) -> f64 {
-        (self.item.profit as f64) * self.take_fraction
+    pub fn effective_profit(&self) -> Fraction {
+        Fraction::from(self.item.profit) * self.take_fraction
     }
 }
 
@@ -139,26 +140,34 @@ pub fn fractional_knapsack(items: &[Item], weight_capacity: u64) -> Knapsack {
 
     for (index, item) in items_sorted_asc.iter().enumerate() {
         // Calculate already used weight, ringing available weight and the currently reached profit
-        let used_knapsack_weight: f64 = knapsack
+        let used_knapsack_weight: Fraction = knapsack
             .borrow()
             .into_iter()
             .map(|chosen_item| chosen_item.effective_weight())
             .sum();
-        let available_knapsack_weight: f64 = (weight_capacity as f64) - used_knapsack_weight;
-        let reached_knapsack_profit: f64 = knapsack
+        let available_knapsack_weight: Fraction =
+            Fraction::from(weight_capacity) - used_knapsack_weight;
+        let reached_knapsack_profit: Fraction = knapsack
             .borrow()
             .into_iter()
             .map(|chosen_item| chosen_item.effective_profit())
             .sum();
 
-        if available_knapsack_weight <= 0.0 {
+        if available_knapsack_weight <= Fraction::from(0) {
             // The knapsack is full / reached its weight capacity. We can not put any more elements into it.
             break;
         }
 
         // How much of the element do we want to take? Maximum 100% or less, if there is not enough space for the entire
         // item.
-        let take_fraction = ((available_knapsack_weight as f64) / (item.weight as f64)).min(1.0);
+        let take_fraction: Fraction = {
+            let take_fraction = available_knapsack_weight / Fraction::from(item.weight);
+            if take_fraction > Fraction::from(1) {
+                Fraction::from(1)
+            } else {
+                take_fraction
+            }
+        };
         // Add item to knapsack
         let knapsack_item = PackedItem {
             item,
@@ -166,7 +175,7 @@ pub fn fractional_knapsack(items: &[Item], weight_capacity: u64) -> Knapsack {
         };
         knapsack.insert(knapsack_item);
 
-        log::debug!("round={:<2} current_id={:<2} take_fraction={:<3} available_capacity={:<3} used_capacity={:<3} effective_profit={:<2}",
+        log::debug!("round={:<2} current_id={:<2} take_fraction={} available_capacity={:<3} used_capacity={:<3} effective_profit={:<2}",
 				 index, item.id, take_fraction, available_knapsack_weight, used_knapsack_weight, reached_knapsack_profit);
     }
 
@@ -339,31 +348,31 @@ mod test {
         let expected_chosen_items = Knapsack::from(vec![
             PackedItem {
                 item: &items[5],
-                take_fraction: 1.0,
+                take_fraction: 1.0.into(),
             },
             PackedItem {
                 item: &items[3],
-                take_fraction: 1.0,
+                take_fraction: 1.0.into(),
             },
             PackedItem {
                 item: &items[12],
-                take_fraction: 1.0,
+                take_fraction: 1.0.into(),
             },
             PackedItem {
                 item: &items[11],
-                take_fraction: 1.0,
+                take_fraction: 1.0.into(),
             },
             PackedItem {
                 item: &items[2],
-                take_fraction: 1.0,
+                take_fraction: 1.0.into(),
             },
             PackedItem {
                 item: &items[8],
-                take_fraction: 1.0,
+                take_fraction: 1.0.into(),
             },
             PackedItem {
                 item: &items[14],
-                take_fraction: 0.6,
+                take_fraction: Fraction::new(6u64, 10u64),
             },
         ]);
         assert_eq!(actual_chosen_items, expected_chosen_items);

@@ -2,6 +2,7 @@ mod cli;
 
 use aud2::knapsack::{fractional_knapsack, maximum_knapsack, Item, PackedItem};
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
+use fraction::Fraction;
 use std::borrow::Borrow;
 use std::fs;
 use std::fs::File;
@@ -23,7 +24,7 @@ fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
             chosen_item.item.id, chosen_item.take_fraction
         );
     }
-    let total_profit: f64 = chosen_items
+    let total_profit: Fraction = chosen_items
         .borrow()
         .into_iter()
         .map(PackedItem::effective_profit)
