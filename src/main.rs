@@ -1,18 +1,33 @@
 mod cli;
 
-use aud2::knapsack::{fractional_knapsack, maximum_knapsack, Item, PackedItem};
+use crate::cli::{CliCommands, FractionalKnapsack};
+use anyhow::Context;
+use aud2::knapsack::{fractional_knapsack, knapsack_0_1, maximum_knapsack, Item, PackedItem};
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use fraction::Fraction;
+use std::fs;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     init_logger();
 
     let cli_args: cli::CliArgs = argh::from_env();
-    println!("{:#?}", cli_args);
+    match cli_args.subcommand {
+        CliCommands::FractionalKnapsack(frac_knapsack) => {
+            fractional_knapsack_autoprint(frac_knapsack)
+        }
+        _ => unimplemented!(),
+    }
 }
 
 /// Calls the library function fractional_knapsack() and prints its results.
-fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
+fn fractional_knapsack_autoprint(cli_args: cli::FractionalKnapsack) -> anyhow::Result<()> {
+    let FractionalKnapsack {
+        items_csv,
+        weight_capacity,
+        flipped_csv,
+    } = cli_args;
+    let items = read_csv(&items_csv, flipped_csv)?;
+
     let chosen_items = fractional_knapsack(&items, weight_capacity);
     for chosen_item in &chosen_items {
         println!(
@@ -22,6 +37,8 @@ fn fractional_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
     }
     let total_profit: Fraction = chosen_items.iter().map(PackedItem::effective_profit).sum();
     println!("total_profit={}", total_profit);
+
+    Ok(())
 }
 
 fn subset_sum_autoprint(numbers: &[u64]) {
@@ -51,6 +68,11 @@ fn maximum_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
     for (i, row) in table.iter().enumerate() {
         println!("i={}: {:?}", i, row);
     }
+}
+
+fn knapsack_0_1_autoprint(items: &[Item], weight_capacity: u64) {
+    let knapsack = knapsack_0_1(items, weight_capacity);
+    println!("Knapsack: {:#?}", knapsack);
 }
 
 /// Transpose a Vec<Vec<T>>, i.e. flip rows and columns. All inner Vec's must have the same length.
@@ -92,6 +114,21 @@ fn flip_csv(csv: String) -> String {
         .collect::<Vec<_>>()
         // And join lines with newline
         .join("\n")
+}
+
+/// Read and parse the csv file `filename` into a `Vec<T>`.
+fn read_csv<T>(filename: &str, flipped: bool) -> anyhow::Result<Vec<T>>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let mut csv =
+        fs::read_to_string(filename).with_context(|| format!("Open csv file {}", filename))?;
+    if flipped {
+        csv = flip_csv(csv);
+    }
+    let mut csv_reader = csv::Reader::from_reader(csv.as_bytes());
+    let items: Result<Vec<T>, _> = csv_reader.deserialize::<T>().collect();
+    items.context("Parse csv file")
 }
 
 /// Initialize the logger.

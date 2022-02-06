@@ -6,7 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+# Parsing command line arguments
 argh = "0.1.7"
+
+# Reading and parsing csv files
+csv = "1.1.6"
+serde = { version = "1.0.136", features = ["derive"] }
+
+# Arithemtic on fraction
 fraction = "0.9.0"
 
 # Logger abstraction
@@ -16,3 +24,4 @@ log = "0.4.14"
 # Disable timestamps via disable-features=false.
 # Print to stderr and use colors.
 simple_logger = { version = "2.1.0", default-features=false, features=["stderr", "colors"] }
+anyhow = "1.0.53"

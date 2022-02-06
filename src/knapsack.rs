@@ -5,6 +5,7 @@
 //! possible"
 
 use fraction::Fraction;
+use serde::Deserialize;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -12,7 +13,7 @@ use std::fmt;
 
 /// An item is an object that has a profit and weight. An item can be put into a knapsack, which caused the item to be
 /// wrapped in an [PackedItem].
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Deserialize)]
 pub struct Item {
     /// An unique identifier.
     pub id: usize,
@@ -218,7 +219,7 @@ pub fn maximum_knapsack(items: &[Item], weight_capacity: u64) -> Vec<Vec<u64>> {
 
 /// Solves the decision problem [0-1-knapsack](https://en.wikipedia.org/wiki/Knapsack_problem)
 /// via the (integer) [greedy algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm).
-fn knapsack_0_1(items: &[Item], weight_capacity: u64) -> Vec<&Item> {
+pub fn knapsack_0_1(items: &[Item], weight_capacity: u64) -> Vec<&Item> {
     // Sort items ascending according to their weight profit ratio. This causes valuable elements to be at the front
     // and not so valuable elements at the back.
     let mut items_sorted_asc: Vec<&Item> = items.iter().collect();
