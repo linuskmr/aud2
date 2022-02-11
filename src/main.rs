@@ -2,7 +2,10 @@ mod cli;
 
 use crate::cli::{CliCommands, FractionalKnapsack};
 use anyhow::Context;
-use aud2::knapsack::{fractional_knapsack, knapsack_0_1, maximum_knapsack, Item, PackedItem};
+use aud2::knapsack::{
+    fractional_knapsack_greedy, knapsack_dynamic_programming, knapsack_integer_greedy, Item,
+    PackedItem,
+};
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use fraction::Fraction;
 use std::fs;
@@ -28,11 +31,11 @@ fn fractional_knapsack_autoprint(cli_args: cli::FractionalKnapsack) -> anyhow::R
     } = cli_args;
     let items = read_csv(&items_csv, flipped_csv)?;
 
-    let chosen_items = fractional_knapsack(&items, weight_capacity);
+    let chosen_items = fractional_knapsack_greedy(&items, weight_capacity);
     for chosen_item in &chosen_items {
         println!(
             "id={:<2} x={:<3}",
-            chosen_item.item.id, chosen_item.take_fraction
+            chosen_item.item.id, chosen_item.take_portion
         );
     }
     let total_profit: Fraction = chosen_items.iter().map(PackedItem::effective_profit).sum();
@@ -64,14 +67,14 @@ fn subset_sum2_autoprint(numbers: &[u64]) {
 }
 
 fn maximum_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
-    let table = maximum_knapsack(items, weight_capacity);
+    let table = knapsack_dynamic_programming(items, weight_capacity);
     for (i, row) in table.iter().enumerate() {
         println!("i={}: {:?}", i, row);
     }
 }
 
 fn knapsack_0_1_autoprint(items: &[Item], weight_capacity: u64) {
-    let knapsack = knapsack_0_1(items, weight_capacity);
+    let knapsack = knapsack_integer_greedy(items, weight_capacity);
     println!("Knapsack: {:#?}", knapsack);
 }
 
