@@ -5,7 +5,7 @@
 //! possible"
 
 use std::borrow::Borrow;
-use std::cmp::{max, Ordering};
+use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Deref, Not};
 
@@ -151,15 +151,21 @@ where
         items
     };
 
-    {
+    // Log sorted item id's. Only do this computation when logging is enabled for this level.
+    let item_ids_log_level = log::Level::Debug;
+    if log::log_enabled!(item_ids_log_level) {
         let items_sorted_ids: Vec<usize> = items_sorted_asc
             .iter()
             .map(|item| item.borrow().id)
             .collect();
-        log::debug!("Sorted item ids: {:?}", items_sorted_ids);
+        log::log!(
+            item_ids_log_level,
+            "Sorted item ids: {:?}",
+            items_sorted_ids
+        );
     }
 
-    // Items that are selected for to be contained in the knapsack
+    // Items that are selected to be contained in the knapsack
     let mut knapsack: Vec<PartialPackedItem<&ItemRef>> = Vec::new();
 
     for (item_index, new_item) in items_sorted_asc.iter().enumerate() {
@@ -327,6 +333,7 @@ pub fn knapsack_integer_greedy<'a, ItemRef, ItemIter>(
     weight_capacity: u64,
 ) -> Vec<&'a ItemRef>
 where
+    ItemRef: Borrow<Item>,
     &'a ItemRef: Borrow<Item>,
     ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
@@ -338,13 +345,18 @@ where
         items
     };
 
-    // Log the sorted ids of the items
-    {
+    // Log the sorted ids of the items. Only do this computation when logging is enabled for this level.
+    let item_ids_log_level = log::Level::Debug;
+    if log::log_enabled!(item_ids_log_level) {
         let items_sorted_ids: Vec<usize> = items_sorted_asc
             .iter()
             .map(|item| item.borrow().id)
             .collect();
-        log::debug!("Sorted item ids: {:?}", items_sorted_ids);
+        log::log!(
+            item_ids_log_level,
+            "Sorted item ids: {:?}",
+            items_sorted_ids
+        );
     }
 
     // Items that are selected to be contained in the knapsack
@@ -377,42 +389,68 @@ where
             );
             continue;
         }
-        // Item fits in knapsack, so out item into the knapsack
+        // Item fits in knapsack, so put item into the knapsack
         log::debug!("Taking item id={:<2}", new_item.borrow().id);
         knapsack.push(new_item);
     }
     knapsack
 }
 
-/*
-pub fn greedy_k<ItemRef, ItemIter>(items: ItemIter, weight_limit: u64, k: usize)
+pub fn greedy_k<'a, ItemRef, ItemIter>(
+    items: &'a ItemIter,
+    weight_limit: u64,
+    k: usize,
+) -> Vec<&'a ItemRef>
 where
-    ItemRef: Borrow<Item> + Clone + PartialEq,
-    ItemIter: IntoIterator<Item = ItemRef>,
+    ItemRef: 'a + Borrow<Item>,
+    &'a ItemRef: Borrow<Item>,
+    &'a ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
-    let items = Vec::from_iter(items);
-
-    // Get all combinations with k elements and fix and include them
-    let knapsack = Itertools::combinations(items.iter(), k)
+    let knapsack = (0..=k)
+        // Get all combinations with 0 elements fixed, 1 element fixed, 2 elements fixed, ..., k elements fixed
+        .map(|k_| Itertools::combinations(items.into_iter(), k_))
+        .flatten()
         // Remove combinations with too much weight
         .filter(|fixed_items| {
-            let weight: u64 = fixed_items
+            let total_weight: u64 = fixed_items
                 .iter()
                 .map(|item| item.deref().borrow().weight)
                 .sum();
-            weight < weight_limit
+            total_weight < weight_limit
         })
-        // Do a normal integer greedy with the remaining items
+        // Perform a normal integer greedy on the remaining items
         .map(|fixed_items| {
-            let remaining_items = items.iter().filter(|item| fixed_items.contains(item).not());
-            let remaining_weight: u64 = fixed_items
+            // Get all items that are not already included in fixed_items
+            let remaining_items = items.into_iter().filter(|item| {
+                fixed_items
+                    .iter()
+                    .find(|fixed_item| fixed_item.deref().deref().borrow() == item.deref().borrow())
+                    .is_none()
+            });
+            let fixed_items_weight: u64 = fixed_items
                 .iter()
                 .map(|item| item.deref().borrow().weight)
                 .sum();
-            let remaining_items_vec: Vec<&ItemRef> = remaining_items.collect();
-            let remaining_greedy = knapsack_integer_greedy(remaining_items_vec, remaining_weight);
-            let mut knapsack = remaining_greedy;
-            knapsack.extend_from_slice(fixed_items.as_slice());
+            let remaining_weight_limit = weight_limit - fixed_items_weight;
+            let remaining_greedy = knapsack_integer_greedy(remaining_items, remaining_weight_limit);
+            let knapsack = {
+                let mut knapsack = remaining_greedy;
+                knapsack.extend_from_slice(&fixed_items);
+                knapsack
+            };
+            log::info!(
+                "Knapsack={:?}, fixed={:?}, fixed_weight={}, remaining_weight={}",
+                knapsack
+                    .iter()
+                    .map(|item| item.borrow().id)
+                    .collect::<Vec<usize>>(),
+                fixed_items
+                    .iter()
+                    .map(|item| item.borrow().id)
+                    .collect::<Vec<usize>>(),
+                fixed_items_weight,
+                remaining_weight_limit
+            );
             knapsack
         })
         // Get the best knapsack, i.e. the selection with the most profit
@@ -425,9 +463,8 @@ where
         // Get either the result or an empty vec
         .unwrap_or_default();
 
-    println!("{:#?}", knapsack);
+    knapsack
 }
-*/
 
 /* pub fn knapsack_branch_and_bound<'a, ItemRef, ItemIter>(items: ItemIter, weight_limit: u64) -> u64
 where
@@ -774,6 +811,41 @@ mod test {
             actual_knapsack, expected_knapsack,
             "Algorithm chose the wrong items"
         );
+    }
+
+    #[test]
+    fn test_greedy_k() {
+        let items = [
+            Item {
+                id: 0,
+                profit: 13,
+                weight: 13,
+            },
+            Item {
+                id: 1,
+                profit: 11,
+                weight: 11,
+            },
+            Item {
+                id: 2,
+                profit: 10,
+                weight: 10,
+            },
+            Item {
+                id: 3,
+                profit: 8,
+                weight: 8,
+            },
+        ];
+        let weight_limit = 30;
+        let k = 2;
+        let actual_knapsack = greedy_k(&items, weight_limit, k);
+        assert!(
+            actual_knapsack.iter().map(|item| item.weight).sum::<u64>() <= weight_limit,
+            "Knapsack solution too heavy"
+        );
+        let expected_knapsack = [&items[1], &items[2], &items[3]];
+        assert_eq!(actual_knapsack, expected_knapsack);
     }
 
     #[test]

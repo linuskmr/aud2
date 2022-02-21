@@ -3,8 +3,8 @@ mod cli;
 use crate::cli::{CliArgs, CliCommands, FractionalKnapsack};
 use anyhow::Context;
 use aud2::knapsack::{
-    fractional_knapsack_greedy, knapsack_dynamic_programming, knapsack_integer_greedy, Item,
-    PartialPackedItem,
+    fractional_knapsack_greedy, greedy_k, knapsack_dynamic_programming, knapsack_integer_greedy,
+    Item, PartialPackedItem,
 };
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use fraction::Fraction;
@@ -18,9 +18,10 @@ fn main() -> anyhow::Result<()> {
         CliCommands::FractionalKnapsack(frac_knapsack) => {
             fractional_knapsack_greedy_autoprint(frac_knapsack)
         }
-        CliCommands::MaximumKnapsackDynamicProgramming(max_knapsack) => {
+        CliCommands::KnapsackDynamicProgramming(max_knapsack) => {
             maximum_knapsack_dynamic_programming_autoprint(max_knapsack)
         }
+        CliCommands::KnapsackGreedyK(greedy_k) => knapsack_greedy_k_autoprint(greedy_k),
         _ => unimplemented!(),
     }
 }
@@ -73,9 +74,9 @@ fn subset_sum2_autoprint(numbers: &[u64]) {
 }
 
 fn maximum_knapsack_dynamic_programming_autoprint(
-    cli_args: cli::MaximumKnapsackDynamicProgramming,
+    cli_args: cli::KnapsackDynamicProgramming,
 ) -> anyhow::Result<()> {
-    let cli::MaximumKnapsackDynamicProgramming {
+    let cli::KnapsackDynamicProgramming {
         items_csv,
         flipped_csv,
         weight_limit,
@@ -98,6 +99,28 @@ fn maximum_knapsack_dynamic_programming_autoprint(
 fn knapsack_integer_greedy_autoprint(items: &[Item], weight_capacity: u64) {
     let knapsack = knapsack_integer_greedy(items, weight_capacity);
     println!("Knapsack: {:#?}", knapsack);
+}
+
+fn knapsack_greedy_k_autoprint(cli_args: cli::KnapsackGreedyK) -> anyhow::Result<()> {
+    let cli::KnapsackGreedyK {
+        items_csv,
+        flipped_csv,
+        weight_limit,
+        k,
+    } = cli_args;
+    let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
+    let knapsack = greedy_k(&items, weight_limit, k);
+    println!("Knapsack: {:#?}", knapsack);
+    println!(
+        "Total profit: {}",
+        knapsack.iter().map(|item| item.profit).sum::<u64>()
+    );
+    println!(
+        "Total weight {} of allowed weight limit {}",
+        knapsack.iter().map(|item| item.weight).sum::<u64>(),
+        weight_limit
+    );
+    Ok(())
 }
 
 /// Transpose a Vec<Vec<T>>, i.e. flip rows and columns. All inner Vec's must have the same length.
