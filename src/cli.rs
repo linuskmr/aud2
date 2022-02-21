@@ -17,8 +17,8 @@ pub(crate) enum CliCommands {
     KnapsackDynamicProgramming(KnapsackDynamicProgramming),
     KnapsackBranchBound(KnapsackBranchBound),
     KnapsackGreedyK(KnapsackGreedyK),
-    SubsetSumRowSumSet(SubsetSumRowSumSet),
-    SubsetSumFullBoolTable(SubsetSumFullBoolTable),
+    SubsetSumRowSumSet(SubsetSumRowSet),
+    SubsetSumFullTable(SubsetSumFullTable),
     KnapsackIntegerGreedy(KnapsackIntegerGreedy),
 }
 
@@ -94,19 +94,23 @@ pub(crate) struct KnapsackGreedyK {
     pub(crate) k: usize,
 }
 
-/// SubsetSumRowSumSet
+/// Solve subset sum and print a HashSet of reachable sums.
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "subsum-row")]
-pub(crate) struct SubsetSumRowSumSet {
+pub(crate) struct SubsetSumRowSet {
     /// numbers of the subset sum instance.
     #[argh(positional)]
     pub(crate) numbers: Vec<u64>,
 }
 
-/// SubsetSumFullBoolTable
+/// Solve subset sum and print a the full bool table of reachable sums.
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "subsum-full")]
-pub(crate) struct SubsetSumFullBoolTable {}
+pub(crate) struct SubsetSumFullTable {
+    /// numbers of the subset sum instance.
+    #[argh(positional)]
+    pub(crate) numbers: Vec<u64>,
+}
 
 /// Solve maximum knapsack with integer greedy. The result may not be optimal.
 #[derive(FromArgs, PartialEq, Debug)]

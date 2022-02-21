@@ -31,7 +31,7 @@ fn invoke_subcommand(cli_args: CliArgs) -> anyhow::Result<()> {
         CliCommands::KnapsackGreedyK(sub_cli_args) => knapsack_greedy_k_cli(sub_cli_args),
         CliCommands::KnapsackBranchBound(sub_cli_args) => knapsack_branch_and_bound(sub_cli_args),
         CliCommands::SubsetSumRowSumSet(sub_cli_args) => subset_sum_row_set_cli(sub_cli_args),
-        _ => unimplemented!(),
+        CliCommands::SubsetSumFullTable(sub_cli_args) => subset_sum_full_table_cli(sub_cli_args),
     }
 }
 
@@ -64,8 +64,8 @@ fn knapsack_fractional_greedy_cli(cli_args: cli::KnapsackFractionalGreedy) -> an
 }
 
 /// CLI wrapper for [subset_sum_row_sum_set].
-fn subset_sum_row_set_cli(cli_args: cli::SubsetSumRowSumSet) -> anyhow::Result<()> {
-    let cli::SubsetSumRowSumSet { numbers } = cli_args;
+fn subset_sum_row_set_cli(cli_args: cli::SubsetSumRowSet) -> anyhow::Result<()> {
+    let cli::SubsetSumRowSet { numbers } = cli_args;
     println!("Input numbers: {:?}", numbers);
     let table = subset_sum_row_sum_set(&numbers);
     for (i, row) in table.iter().enumerate() {
@@ -75,19 +75,14 @@ fn subset_sum_row_set_cli(cli_args: cli::SubsetSumRowSumSet) -> anyhow::Result<(
 }
 
 /// CLI wrapper for [subset_sum_full_bool_table].
-fn subset_sum_full_table_cli(numbers: &[u64]) {
-    let table = subset_sum_full_bool_table(numbers);
-    for (i, row) in table.iter().enumerate() {
-        let reachable_sums: Vec<_> = row
-            .iter()
-            .enumerate()
-            .filter(|(_, cell)| **cell == true)
-            .map(|(index, _)| index)
-            .collect();
-        println!("i={}: {:?}", i, reachable_sums);
+fn subset_sum_full_table_cli(cli_args: cli::SubsetSumFullTable) -> anyhow::Result<()> {
+    let cli::SubsetSumFullTable { numbers } = cli_args;
+    println!("Input numbers: {:?}", numbers);
+    let table = subset_sum_full_bool_table(&numbers);
+    for row in table {
+        println!("{:?}", row);
     }
-
-    println!("{:?}", table);
+    Ok(())
 }
 
 /// CLI wrapper for [aud2::knapsack::dynamic_programming].
