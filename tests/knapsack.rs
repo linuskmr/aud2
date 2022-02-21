@@ -85,7 +85,7 @@ static ITEMS: [Item; 16] = [
 ];
 
 #[test]
-fn test_fractional_knapsack() {
+fn test_fractional_greedy() {
     let weight_capacity = 120;
     let actual_chosen_items = fractional_greedy(&ITEMS, weight_capacity);
     let expected_chosen_items = vec![
@@ -122,7 +122,7 @@ fn test_fractional_knapsack() {
 }
 
 #[test]
-fn test_maximum_knapsack() {
+fn test_dynamic_programming() {
     let max_knapsack_items = [
         Item {
             id: 0,
@@ -209,7 +209,7 @@ fn test_greedy_k() {
 }
 
 #[test]
-fn test_knapsack_0_1() {
+fn test_integer_greedy() {
     let weight_capacity = 120;
     let actual_knapsack = integer_greedy(&ITEMS, weight_capacity);
     let expected_ids = [6, 4, 13, 12, 3, 9, 16];
@@ -220,4 +220,82 @@ fn test_knapsack_0_1() {
             .collect::<Vec<_>>(),
         expected_ids
     );
+}
+
+#[test]
+fn test_branch_and_bound_1() {
+    let items = [
+        Item {
+            id: 0,
+            profit: 6,
+            weight: 2,
+        },
+        Item {
+            id: 1,
+            profit: 5,
+            weight: 3,
+        },
+        Item {
+            id: 2,
+            profit: 8,
+            weight: 6,
+        },
+        Item {
+            id: 3,
+            profit: 9,
+            weight: 7,
+        },
+        Item {
+            id: 4,
+            profit: 6,
+            weight: 5,
+        },
+        Item {
+            id: 5,
+            profit: 7,
+            weight: 9,
+        },
+        Item {
+            id: 6,
+            profit: 3,
+            weight: 4,
+        },
+    ];
+    let actual_knapsack = branch_and_bound(&items, 9);
+    let expected_knapsack = [&items[3], &items[0]];
+    assert_eq!(actual_knapsack, expected_knapsack);
+}
+
+#[test]
+fn test_branch_and_bound_2() {
+    let items = [
+        Item {
+            id: 0,
+            profit: 14,
+            weight: 11,
+        },
+        Item {
+            id: 1,
+            profit: 6,
+            weight: 5,
+        },
+        Item {
+            id: 2,
+            profit: 13,
+            weight: 13,
+        },
+        Item {
+            id: 3,
+            profit: 16,
+            weight: 18,
+        },
+        Item {
+            id: 4,
+            profit: 9,
+            weight: 7,
+        },
+    ];
+    let actual_knapsack = branch_and_bound(&items, 33);
+    let expected_knapsack = [&items[2], &items[4], &items[0]];
+    assert_eq!(actual_knapsack, expected_knapsack);
 }
