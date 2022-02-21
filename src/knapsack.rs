@@ -541,20 +541,6 @@ where
         best_knapsack = lower_bound_knapsack;
     }
 
-    /*let upper_bound_knapsack: Vec<&ItemRef> = {
-        let packed_items = fractional_greedy(items.into_iter().map(|&item| item), weight_limit);
-        let mut upper_bound_knapsack: Vec<&ItemRef> = packed_items
-            .into_iter()
-            // Relaxation of upper bound: Remove all items that are not 100% included, since integer knapsack can never
-            // reach a decimal profit.
-            .filter(|packed_item| packed_item.take_portion == Fraction::from(1u64))
-            // All remaining items are packed to 100%, so we can remove the PartialPackedItem wrapper around the items
-            .map(|packed_item| packed_item.item)
-            .collect();
-        upper_bound_knapsack.extend(fixed_items);
-        upper_bound_knapsack
-    };*/
-
     let upper_bound_profit = {
         let packed_items = fractional_greedy(items.into_iter().map(|&item| item), weight_limit);
         let upper_bound_profit: Fraction = packed_items

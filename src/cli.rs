@@ -13,19 +13,19 @@ pub(crate) struct CliArgs {
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand)]
 pub(crate) enum CliCommands {
-    FractionalGreedy(FractionalKnapsack),
+    KnapsackFractionalGreedy(KnapsackFractionalGreedy),
     KnapsackDynamicProgramming(KnapsackDynamicProgramming),
     KnapsackBranchBound(KnapsackBranchBound),
     KnapsackGreedyK(KnapsackGreedyK),
     SubsetSumRowSumSet(SubsetSumRowSumSet),
     SubsetSumFullBoolTable(SubsetSumFullBoolTable),
-    Knapsack01(Knapsack01),
+    KnapsackIntegerGreedy(KnapsackIntegerGreedy),
 }
 
 /// FractionalKnapsack
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "frac-ks")]
-pub(crate) struct FractionalKnapsack {
+pub(crate) struct KnapsackFractionalGreedy {
     /// path to a csv file with the input elements (id, weight, profit).
     #[argh(positional)]
     pub(crate) items_csv: String,
@@ -73,7 +73,7 @@ pub(crate) struct KnapsackBranchBound {
     pub(crate) weight_limit: u64,
 }
 
-/// Solve maximum knapsack with the greedy_k approximation algorithm.
+/// Solve maximum knapsack with the greedy_k approximation algorithm. The result may not be optimal.
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "ks-greedyk")]
 pub(crate) struct KnapsackGreedyK {
@@ -108,14 +108,19 @@ pub(crate) struct SubsetSumRowSumSet {
 #[argh(subcommand, name = "subsum-full")]
 pub(crate) struct SubsetSumFullBoolTable {}
 
-/// 0-1-Knapsack
+/// Solve maximum knapsack with integer greedy. The result may not be optimal.
 #[derive(FromArgs, PartialEq, Debug)]
-#[argh(subcommand, name = "ks-01")]
-pub(crate) struct Knapsack01 {
+#[argh(subcommand, name = "ks-ig")]
+pub(crate) struct KnapsackIntegerGreedy {
     /// path to a csv file with the input elements (id, weight, profit).
     #[argh(positional)]
-    pub(crate) csv_file: String,
+    pub(crate) items_csv: String,
+
     /// enable this flag if your CSV is written from left to right.
     #[argh(switch, short = 'f')]
     pub(crate) flipped_csv: bool,
+
+    /// maximum weight of the knapsack.
+    #[argh(positional)]
+    pub(crate) weight_limit: u64,
 }

@@ -1,6 +1,6 @@
 mod cli;
 
-use crate::cli::{CliArgs, CliCommands, FractionalKnapsack};
+use crate::cli::{CliArgs, CliCommands, KnapsackFractionalGreedy};
 use anyhow::Context;
 use aud2::knapsack::{Item, PartialPackedItem};
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
@@ -19,7 +19,12 @@ fn main() -> anyhow::Result<()> {
 /// subcommand.
 fn invoke_subcommand(cli_args: CliArgs) -> anyhow::Result<()> {
     match cli_args.subcommand {
-        CliCommands::FractionalGreedy(sub_cli_args) => knapsack_fractional_greedy_cli(sub_cli_args),
+        CliCommands::KnapsackFractionalGreedy(sub_cli_args) => {
+            knapsack_fractional_greedy_cli(sub_cli_args)
+        }
+        CliCommands::KnapsackIntegerGreedy(sub_cli_args) => {
+            knapsack_integer_greedy_cli(sub_cli_args)
+        }
         CliCommands::KnapsackDynamicProgramming(sub_cli_args) => {
             knapsack_dynamic_programming_cli(sub_cli_args)
         }
@@ -34,8 +39,8 @@ fn invoke_subcommand(cli_args: CliArgs) -> anyhow::Result<()> {
 // call a library function and print its result.
 
 /// CLI wrapper for [aud2::knapsack::fractional_greedy].
-fn knapsack_fractional_greedy_cli(cli_args: cli::FractionalKnapsack) -> anyhow::Result<()> {
-    let FractionalKnapsack {
+fn knapsack_fractional_greedy_cli(cli_args: cli::KnapsackFractionalGreedy) -> anyhow::Result<()> {
+    let KnapsackFractionalGreedy {
         items_csv,
         weight_limit: weight_capacity,
         flipped_csv,
@@ -110,9 +115,16 @@ fn knapsack_dynamic_programming_cli(
 }
 
 /// CLI wrapper for [aud2::knapsack::integer_greedy].
-fn knapsack_integer_greedy_cli(items: &[Item], weight_capacity: u64) {
-    let knapsack = aud2::knapsack::integer_greedy(items, weight_capacity);
+fn knapsack_integer_greedy_cli(cli_args: cli::KnapsackIntegerGreedy) -> anyhow::Result<()> {
+    let cli::KnapsackIntegerGreedy {
+        items_csv,
+        weight_limit,
+        flipped_csv,
+    } = cli_args;
+    let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
+    let knapsack = aud2::knapsack::integer_greedy(&items, weight_limit);
     println!("Knapsack: {:#?}", knapsack);
+    Ok(())
 }
 
 /// CLI wrapper for [aud2::knapsack::greedy_k].
