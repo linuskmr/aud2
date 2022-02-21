@@ -68,17 +68,17 @@ impl fmt::Debug for Item {
 
 /// An [Item] that was put inside a knapsack, storing how much of the item was put into the knapsack.
 #[derive(Debug, PartialEq, Clone)]
-pub struct PartialPackedItem<ItemRef>
+pub struct PartialPackedItem<'a, ItemRef>
 where
     ItemRef: Borrow<Item>,
 {
     /// The original item.
-    pub item: ItemRef,
+    pub item: &'a ItemRef,
     /// A fraction indicating how much of the item was put into the knapsack.
     pub take_portion: Fraction,
 }
 
-impl<ItemRef> PartialPackedItem<ItemRef>
+impl<'a, ItemRef> PartialPackedItem<'a, ItemRef>
 where
     ItemRef: Borrow<Item>,
 {
@@ -101,53 +101,41 @@ impl PartialOrd for Item {
     }
 }
 
-/// Helper function making it possible to sort a Vec<Item> with .sort_by(cmp_items).
-/// Although the f64 returned by self.weight_profit_ratio() does not implement Ord, this is needed to be able to sort a
-/// collection. So we simply assert that ordering the f64 is always possible, i.e. NaN and infinity are not allowed as
-/// weight_profit_ratio.
-fn cmp_items<ItemRef: Borrow<Item>>(item_a: &ItemRef, item_b: &ItemRef) -> Ordering {
-    let item_a_ration = item_a.borrow().weight_profit_ratio();
-    let item_b_ration = item_b.borrow().weight_profit_ratio();
-    item_a_ration
-        .partial_cmp(&item_b_ration)
-        .expect("Illegal values in item which make it unable to be sorted")
-}
-
+// Allow items to be compared and sorted by their weight_profit_ration.
 impl Ord for Item {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other)
-            .expect("Illegal values in item which make it unable to be sorted")
+        self.partial_cmp(other).unwrap()
     }
 }
 
 // ------- Solving Algorithms ----------------------------------
 
 /// Solves the [fractional knapsack problem](https://en.wikipedia.org/wiki/Continuous_knapsack_problem) by using the
-/// [greedy algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm).
+/// [fractional greedy algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm). The returned solution is optimal.
 ///
 /// # Arguments
+///
 /// * `items` - Something that can be turned into an iterator yielding references to [Item]s or something that can be
 /// borrowed as [Item].
-/// * `weight_limit`: The maximum allowed weight of the knapsack.
+/// * `weight_limit` - The maximum allowed weight of the knapsack.
 ///
 /// # Returns
 ///
-/// A list of [PackedItem]s. They contain a fraction of how much of the item was put into the knapsack. This is a value
-/// between 0 (exclusive) and 1 (inclusive). [Item]s that were not chosen are not contained in this list.
-pub fn fractional_knapsack_greedy<'a, ItemRef, ItemIter>(
+/// A list of [PartialPackedItem]s. They contain a fraction of how much of the item was put into the knapsack.
+/// This is a value between 0 (exclusive) and 1 (inclusive). [Item]s that were not chosen are not contained in this list.
+pub fn fractional_greedy<'a, ItemRef, ItemIter>(
     items: ItemIter,
     weight_limit: u64,
-) -> Vec<PartialPackedItem<&'a ItemRef>>
+) -> Vec<PartialPackedItem<'a, ItemRef>>
 where
     ItemRef: Borrow<Item>,
-    &'a ItemRef: Borrow<Item>,
     ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
     // Sort items ascending according to their weight profit ratio. This causes valuable elements to be at the front
     // and not so valuable elements at the back.
     let items_sorted_asc: Vec<&ItemRef> = {
         let mut items: Vec<&ItemRef> = Vec::from_iter(items);
-        items.sort_by(cmp_items);
+        items.sort_by_key(|item| <ItemRef as Borrow<Item>>::borrow(item));
         items
     };
 
@@ -156,7 +144,7 @@ where
     if log::log_enabled!(item_ids_log_level) {
         let items_sorted_ids: Vec<usize> = items_sorted_asc
             .iter()
-            .map(|item| item.borrow().id)
+            .map(|item| item.deref().borrow().id)
             .collect();
         log::log!(
             item_ids_log_level,
@@ -166,7 +154,7 @@ where
     }
 
     // Items that are selected to be contained in the knapsack
-    let mut knapsack: Vec<PartialPackedItem<&ItemRef>> = Vec::new();
+    let mut knapsack: Vec<PartialPackedItem<'a, ItemRef>> = Vec::new();
 
     for (item_index, new_item) in items_sorted_asc.iter().enumerate() {
         // Calculate already used weight, remaining available weight and the currently reached profit
@@ -190,7 +178,7 @@ where
         // item.
         let take_fraction: Fraction = {
             let take_fraction =
-                available_knapsack_weight / Fraction::from(new_item.borrow().weight);
+                available_knapsack_weight / Fraction::from(new_item.deref().borrow().weight);
             if take_fraction > Fraction::from(1) {
                 Fraction::from(1)
             } else {
@@ -205,14 +193,24 @@ where
         knapsack.push(knapsack_item);
 
         log::debug!("round={:<2} current_id={:<2} take_fraction={} available_capacity={:<3} used_capacity={:<3} effective_profit={:<2}",
-            item_index, new_item.borrow().id, take_fraction, available_knapsack_weight, used_knapsack_weight, reached_knapsack_profit);
+            item_index, new_item.deref().borrow().id, take_fraction, available_knapsack_weight, used_knapsack_weight, reached_knapsack_profit);
     }
     knapsack
 }
 
 /// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
-/// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming).
-pub fn knapsack_dynamic_programming<'a, ItemIter, ItemRef>(
+/// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming). The returned solution is optimal.
+///
+/// # Arguments
+///
+/// * `items` - Something that can be turned into an iterator yielding references to [Item]s or something that can be
+/// borrowed as [Item].
+/// * `weight_limit` - The maximum allowed weight of the knapsack.
+///
+/// # Returns
+///
+/// The knapsack, i.e. all items that are chosen to be in the knapsack.
+pub fn dynamic_programming<'a, ItemIter, ItemRef>(
     items: ItemIter,
     weight_capacity: u64,
 ) -> Vec<&'a ItemRef>
@@ -325,23 +323,31 @@ where
     row.pop().unwrap_or_default()
 }
 
-/// Solves the decision problem [0-1-knapsack](https://en.wikipedia.org/wiki/Knapsack_problem)
-/// via the (integer) [greedy algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm).
-/// This function returns the knapsack containing all chosen items. This solution may not be optimal!
-pub fn knapsack_integer_greedy<'a, ItemRef, ItemIter>(
+/// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
+/// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming). The returned solution may not be optimal!
+///
+/// # Arguments
+///
+/// * `items` - Something that can be turned into an iterator yielding references to [Item]s or something that can be
+/// borrowed as [Item].
+/// * `weight_limit` - The maximum allowed weight of the knapsack.
+///
+/// # Returns
+///
+/// The knapsack, i.e. all items that are chosen to be in the knapsack.
+pub fn integer_greedy<'a, ItemRef, ItemIter>(
     items: ItemIter,
     weight_capacity: u64,
 ) -> Vec<&'a ItemRef>
 where
     ItemRef: Borrow<Item>,
-    &'a ItemRef: Borrow<Item>,
     ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
     // Sort items ascending according to their weight profit ratio. This causes valuable elements to be at the front
     // and not so valuable elements at the back.
     let items_sorted_asc: Vec<&ItemRef> = {
         let mut items = Vec::from_iter(items);
-        items.sort_by(cmp_items);
+        items.sort_by_key(|item| <ItemRef as Borrow<Item>>::borrow(item));
         items
     };
 
@@ -350,7 +356,7 @@ where
     if log::log_enabled!(item_ids_log_level) {
         let items_sorted_ids: Vec<usize> = items_sorted_asc
             .iter()
-            .map(|item| item.borrow().id)
+            .map(|item| item.deref().borrow().id)
             .collect();
         log::log!(
             item_ids_log_level,
@@ -364,12 +370,15 @@ where
 
     for (item_index, new_item) in items_sorted_asc.iter().enumerate() {
         // Calculate already used weight, remaining available weight and the currently reached profit
-        let used_knapsack_weight: u64 = knapsack.iter().map(|item| item.borrow().weight).sum();
+        let used_knapsack_weight: u64 = knapsack
+            .iter()
+            .map(|item| item.deref().borrow().weight)
+            .sum();
         let available_knapsack_weight: u64 = weight_capacity - used_knapsack_weight;
         log::debug!(
             "round={:<2} current_id={:<2} available_weight={} used_weight={}",
             item_index,
-            new_item.borrow().id,
+            new_item.deref().borrow().id,
             available_knapsack_weight,
             used_knapsack_weight
         );
@@ -379,23 +388,37 @@ where
             break;
         }
 
-        if available_knapsack_weight < new_item.borrow().weight {
+        if available_knapsack_weight < new_item.deref().borrow().weight {
             // Item weights too much
             log::info!(
                 "Item id={:<2} weights too much. item.weight={} > available_weight={}",
-                new_item.borrow().id,
-                new_item.borrow().weight,
+                new_item.deref().borrow().id,
+                new_item.deref().borrow().weight,
                 available_knapsack_weight
             );
             continue;
         }
         // Item fits in knapsack, so put item into the knapsack
-        log::debug!("Taking item id={:<2}", new_item.borrow().id);
+        log::debug!("Taking item id={:<2}", new_item.deref().borrow().id);
         knapsack.push(new_item);
     }
     knapsack
 }
 
+/// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
+/// [integer greedy algorithm](https://en.wikipedia.org/wiki/Dynamic_programming).
+/// This is a heuristic algorithm, so the returned solution may not be optimal.
+///
+/// # Arguments
+///
+/// * `items` - Something that can be turned into an iterator yielding references to [Item]s or something that can be
+/// borrowed as [Item].
+/// * `weight_limit` - The maximum allowed weight of the knapsack.
+/// * `k` - How many items should be fixed brute-forced like before running a integer greedy.
+///
+/// # Returns
+///
+/// The knapsack, i.e. all items that are chosen to be in the knapsack.
 pub fn greedy_k<'a, ItemRef, ItemIter>(
     items: &'a ItemIter,
     weight_limit: u64,
@@ -432,10 +455,10 @@ where
                 .map(|item| item.deref().borrow().weight)
                 .sum();
             let remaining_weight_limit = weight_limit - fixed_items_weight;
-            let remaining_greedy = knapsack_integer_greedy(remaining_items, remaining_weight_limit);
+            let remaining_greedy = integer_greedy(remaining_items, remaining_weight_limit);
             let knapsack = {
                 let mut knapsack = remaining_greedy;
-                knapsack.extend_from_slice(&fixed_items);
+                knapsack.extend_from_slice(fixed_items.as_slice());
                 knapsack
             };
             log::info!(
@@ -611,8 +634,8 @@ where
 fn packed_items_profit_sum<'a, IterItem, Iter>(items: Iter) -> Fraction
 where
     IterItem: 'a,
-    &'a IterItem: Borrow<Item>,
-    Iter: IntoIterator<Item = &'a PartialPackedItem<&'a IterItem>>,
+    IterItem: Borrow<Item>,
+    Iter: IntoIterator<Item = &'a PartialPackedItem<'a, IterItem>>,
 {
     items
         .into_iter()
@@ -727,7 +750,7 @@ mod test {
     #[test]
     fn test_fractional_knapsack() {
         let weight_capacity = 120;
-        let actual_chosen_items = fractional_knapsack_greedy(&ITEMS, weight_capacity);
+        let actual_chosen_items = fractional_greedy(&ITEMS, weight_capacity);
         let expected_chosen_items = vec![
             PartialPackedItem {
                 item: &ITEMS[5],
@@ -801,7 +824,7 @@ mod test {
             },
         ];
         let weight_limit = 9;
-        let actual_knapsack = knapsack_dynamic_programming(&max_knapsack_items, weight_limit);
+        let actual_knapsack = dynamic_programming(&max_knapsack_items, weight_limit);
         assert!(
             actual_knapsack.iter().map(|item| item.weight).sum::<u64>() <= weight_limit,
             "Knapsack solution too heavy"
@@ -851,7 +874,7 @@ mod test {
     #[test]
     fn test_knapsack_0_1() {
         let weight_capacity = 120;
-        let actual_knapsack = knapsack_integer_greedy(&ITEMS, weight_capacity);
+        let actual_knapsack = integer_greedy(&ITEMS, weight_capacity);
         let expected_ids = [6, 4, 13, 12, 3, 9, 16];
         assert_eq!(
             actual_knapsack

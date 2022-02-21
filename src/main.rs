@@ -2,10 +2,7 @@ mod cli;
 
 use crate::cli::{CliArgs, CliCommands, FractionalKnapsack};
 use anyhow::Context;
-use aud2::knapsack::{
-    fractional_knapsack_greedy, greedy_k, knapsack_dynamic_programming, knapsack_integer_greedy,
-    Item, PartialPackedItem,
-};
+use aud2::knapsack::{Item, PartialPackedItem};
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use fraction::Fraction;
 use std::fs;
@@ -13,21 +10,29 @@ use std::fs;
 fn main() -> anyhow::Result<()> {
     init_logger();
 
+    // Parse command line arguments and decide what to do
     let cli_args: cli::CliArgs = argh::from_env();
+    invoke_subcommand(cli_args)
+}
+
+/// Inspects the passed command line arguments and starts the corresponding cli wrapper function for the selected
+/// subcommand.
+fn invoke_subcommand(cli_args: cli::CliArgs) -> anyhow::Result<()> {
     match cli_args.subcommand {
-        CliCommands::FractionalKnapsack(frac_knapsack) => {
-            fractional_knapsack_greedy_autoprint(frac_knapsack)
+        CliCommands::FractionalGreedy(sub_cli_args) => knapsack_fractional_greedy_cli(sub_cli_args),
+        CliCommands::KnapsackDynamicProgramming(sub_cli_args) => {
+            knapsack_dynamic_programming_cli(sub_cli_args)
         }
-        CliCommands::KnapsackDynamicProgramming(max_knapsack) => {
-            maximum_knapsack_dynamic_programming_autoprint(max_knapsack)
-        }
-        CliCommands::KnapsackGreedyK(greedy_k) => knapsack_greedy_k_autoprint(greedy_k),
+        CliCommands::KnapsackGreedyK(greedy_k) => knapsack_greedy_k_cli(greedy_k),
         _ => unimplemented!(),
     }
 }
 
-/// Calls the library function fractional_knapsack() and prints its results.
-fn fractional_knapsack_greedy_autoprint(cli_args: cli::FractionalKnapsack) -> anyhow::Result<()> {
+// The following functions are helper functions. They parse the command line arguments for the corresponding subcommand,
+// call a library function and print its result.
+
+/// CLI wrapper for [aud2::knapsack::fractional_greedy].
+fn knapsack_fractional_greedy_cli(cli_args: cli::FractionalKnapsack) -> anyhow::Result<()> {
     let FractionalKnapsack {
         items_csv,
         weight_limit: weight_capacity,
@@ -35,7 +40,7 @@ fn fractional_knapsack_greedy_autoprint(cli_args: cli::FractionalKnapsack) -> an
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
 
-    let chosen_items = fractional_knapsack_greedy(&items, weight_capacity);
+    let chosen_items = aud2::knapsack::fractional_greedy(&items, weight_capacity);
     for chosen_item in &chosen_items {
         println!(
             "id={:<2} x={:<3}",
@@ -51,14 +56,16 @@ fn fractional_knapsack_greedy_autoprint(cli_args: cli::FractionalKnapsack) -> an
     Ok(())
 }
 
-fn subset_sum_autoprint(numbers: &[u64]) {
+/// CLI wrapper for [subset_sum_row_sum_set].
+fn subset_sum_cli(numbers: &[u64]) {
     let table = subset_sum_row_sum_set(numbers);
     for (i, row) in table.iter().enumerate() {
         println!("i={}: {:?}", i, row);
     }
 }
 
-fn subset_sum2_autoprint(numbers: &[u64]) {
+/// CLI wrapper for [subset_sum_full_bool_table].
+fn subset_sum2_cli(numbers: &[u64]) {
     let table = subset_sum_full_bool_table(numbers);
     for (i, row) in table.iter().enumerate() {
         let reachable_sums: Vec<_> = row
@@ -73,7 +80,8 @@ fn subset_sum2_autoprint(numbers: &[u64]) {
     println!("{:?}", table);
 }
 
-fn maximum_knapsack_dynamic_programming_autoprint(
+/// CLI wrapper for [aud2::knapsack::dynamic_programming].
+fn knapsack_dynamic_programming_cli(
     cli_args: cli::KnapsackDynamicProgramming,
 ) -> anyhow::Result<()> {
     let cli::KnapsackDynamicProgramming {
@@ -82,7 +90,7 @@ fn maximum_knapsack_dynamic_programming_autoprint(
         weight_limit,
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
-    let knapsack = knapsack_dynamic_programming(&items, weight_limit);
+    let knapsack = aud2::knapsack::dynamic_programming(&items, weight_limit);
     println!("Knapsack: {:#?}", knapsack);
     println!(
         "Total profit: {}",
@@ -96,12 +104,14 @@ fn maximum_knapsack_dynamic_programming_autoprint(
     Ok(())
 }
 
-fn knapsack_integer_greedy_autoprint(items: &[Item], weight_capacity: u64) {
-    let knapsack = knapsack_integer_greedy(items, weight_capacity);
+/// CLI wrapper for [aud2::knapsack::integer_greedy].
+fn knapsack_integer_greedy_cli(items: &[Item], weight_capacity: u64) {
+    let knapsack = aud2::knapsack::integer_greedy(items, weight_capacity);
     println!("Knapsack: {:#?}", knapsack);
 }
 
-fn knapsack_greedy_k_autoprint(cli_args: cli::KnapsackGreedyK) -> anyhow::Result<()> {
+/// CLI wrapper for [aud2::knapsack::greedy_k].
+fn knapsack_greedy_k_cli(cli_args: cli::KnapsackGreedyK) -> anyhow::Result<()> {
     let cli::KnapsackGreedyK {
         items_csv,
         flipped_csv,
@@ -109,7 +119,7 @@ fn knapsack_greedy_k_autoprint(cli_args: cli::KnapsackGreedyK) -> anyhow::Result
         k,
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
-    let knapsack = greedy_k(&items, weight_limit, k);
+    let knapsack = aud2::knapsack::greedy_k(&items, weight_limit, k);
     println!("Knapsack: {:#?}", knapsack);
     println!(
         "Total profit: {}",
@@ -123,8 +133,12 @@ fn knapsack_greedy_k_autoprint(cli_args: cli::KnapsackGreedyK) -> anyhow::Result
     Ok(())
 }
 
+// Other helper functions
+
 /// Transpose a Vec<Vec<T>>, i.e. flip rows and columns. All inner Vec's must have the same length.
-/// From https://stackoverflow.com/a/64499219/14350146
+///
+/// This function is used to flip the orientation of a CSV file.
+/// From <https://stackoverflow.com/a/64499219/14350146>
 fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
     if v.is_empty() {
         // No work to do for an empty vec
@@ -145,7 +159,7 @@ fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
         .collect()
 }
 
-/// Flips / transposes a CSV. This allows converting CSVs build from left to right to a normal CSV.
+/// Flips / transposes a CSV. This allows converting CSVs build from left to right to normal CSVs.
 fn flip_csv(csv: String) -> String {
     let lines: Vec<Vec<&str>> = csv
         .lines() // Split the lines

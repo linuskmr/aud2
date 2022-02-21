@@ -1,3 +1,5 @@
+//! Type definitions for command line argument parsing via [argh].
+
 use argh::FromArgs;
 
 /// AuD2: Algorithms from "Algorithms and Data Structures 2" implemented in Rust.
@@ -7,10 +9,11 @@ pub(crate) struct CliArgs {
     pub(crate) subcommand: CliCommands,
 }
 
+/// Enum of all subcommands.
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand)]
 pub(crate) enum CliCommands {
-    FractionalKnapsack(FractionalKnapsack),
+    FractionalGreedy(FractionalKnapsack),
     KnapsackDynamicProgramming(KnapsackDynamicProgramming),
     KnapsackGreedyK(KnapsackGreedyK),
     SubsetSumRowSumSet(SubsetSumRowSumSet),
