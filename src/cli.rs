@@ -15,6 +15,7 @@ pub(crate) struct CliArgs {
 pub(crate) enum CliCommands {
     FractionalGreedy(FractionalKnapsack),
     KnapsackDynamicProgramming(KnapsackDynamicProgramming),
+    KnapsackBranchBound(KnapsackBranchBound),
     KnapsackGreedyK(KnapsackGreedyK),
     SubsetSumRowSumSet(SubsetSumRowSumSet),
     SubsetSumFullBoolTable(SubsetSumFullBoolTable),
@@ -55,6 +56,23 @@ pub(crate) struct KnapsackDynamicProgramming {
     pub(crate) weight_limit: u64,
 }
 
+/// Solve maximum knapsack with branch and bound.
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "ks-bb")]
+pub(crate) struct KnapsackBranchBound {
+    /// path to a csv file with the input elements (id, weight, profit).
+    #[argh(positional)]
+    pub(crate) items_csv: String,
+
+    /// enable this flag if your CSV is written from left to right.
+    #[argh(switch, short = 'f')]
+    pub(crate) flipped_csv: bool,
+
+    /// maximum weight of the knapsack.
+    #[argh(positional)]
+    pub(crate) weight_limit: u64,
+}
+
 /// Solve maximum knapsack with the greedy_k approximation algorithm.
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "ks-greedyk")]
@@ -79,7 +97,11 @@ pub(crate) struct KnapsackGreedyK {
 /// SubsetSumRowSumSet
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "subsum-row")]
-pub(crate) struct SubsetSumRowSumSet {}
+pub(crate) struct SubsetSumRowSumSet {
+    /// numbers of the subset sum instance.
+    #[argh(positional)]
+    pub(crate) numbers: Vec<u64>,
+}
 
 /// SubsetSumFullBoolTable
 #[derive(FromArgs, PartialEq, Debug)]

@@ -11,19 +11,21 @@ fn main() -> anyhow::Result<()> {
     init_logger();
 
     // Parse command line arguments and decide what to do
-    let cli_args: cli::CliArgs = argh::from_env();
+    let cli_args: CliArgs = argh::from_env();
     invoke_subcommand(cli_args)
 }
 
 /// Inspects the passed command line arguments and starts the corresponding cli wrapper function for the selected
 /// subcommand.
-fn invoke_subcommand(cli_args: cli::CliArgs) -> anyhow::Result<()> {
+fn invoke_subcommand(cli_args: CliArgs) -> anyhow::Result<()> {
     match cli_args.subcommand {
         CliCommands::FractionalGreedy(sub_cli_args) => knapsack_fractional_greedy_cli(sub_cli_args),
         CliCommands::KnapsackDynamicProgramming(sub_cli_args) => {
             knapsack_dynamic_programming_cli(sub_cli_args)
         }
-        CliCommands::KnapsackGreedyK(greedy_k) => knapsack_greedy_k_cli(greedy_k),
+        CliCommands::KnapsackGreedyK(sub_cli_args) => knapsack_greedy_k_cli(sub_cli_args),
+        CliCommands::KnapsackBranchBound(sub_cli_args) => knapsack_branch_and_bound(sub_cli_args),
+        CliCommands::SubsetSumRowSumSet(sub_cli_args) => subset_sum_row_set_cli(sub_cli_args),
         _ => unimplemented!(),
     }
 }
@@ -57,15 +59,18 @@ fn knapsack_fractional_greedy_cli(cli_args: cli::FractionalKnapsack) -> anyhow::
 }
 
 /// CLI wrapper for [subset_sum_row_sum_set].
-fn subset_sum_cli(numbers: &[u64]) {
-    let table = subset_sum_row_sum_set(numbers);
+fn subset_sum_row_set_cli(cli_args: cli::SubsetSumRowSumSet) -> anyhow::Result<()> {
+    let cli::SubsetSumRowSumSet { numbers } = cli_args;
+    println!("Input numbers: {:?}", numbers);
+    let table = subset_sum_row_sum_set(&numbers);
     for (i, row) in table.iter().enumerate() {
         println!("i={}: {:?}", i, row);
     }
+    Ok(())
 }
 
 /// CLI wrapper for [subset_sum_full_bool_table].
-fn subset_sum2_cli(numbers: &[u64]) {
+fn subset_sum_full_table_cli(numbers: &[u64]) {
     let table = subset_sum_full_bool_table(numbers);
     for (i, row) in table.iter().enumerate() {
         let reachable_sums: Vec<_> = row
@@ -130,6 +135,28 @@ fn knapsack_greedy_k_cli(cli_args: cli::KnapsackGreedyK) -> anyhow::Result<()> {
         knapsack.iter().map(|item| item.weight).sum::<u64>(),
         weight_limit
     );
+    Ok(())
+}
+
+/// CLI wrapper for [aud2::knapsack::branch_and_bound].
+fn knapsack_branch_and_bound(cli_args: cli::KnapsackBranchBound) -> anyhow::Result<()> {
+    let cli::KnapsackBranchBound {
+        items_csv,
+        flipped_csv,
+        weight_limit,
+    } = cli_args;
+    let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
+    let knapsack = aud2::knapsack::branch_and_bound(&items, weight_limit);
+    println!("Knapsack: {:#?}", knapsack);
+    /*println!(
+        "Total profit: {}",
+        knapsack.iter().map(|item| item.profit).sum::<u64>()
+    );
+    println!(
+        "Total weight {} of allowed weight limit {}",
+        knapsack.iter().map(|item| item.weight).sum::<u64>(),
+        weight_limit
+    );*/
     Ok(())
 }
 
