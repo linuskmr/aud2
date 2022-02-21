@@ -78,8 +78,17 @@ fn maximum_knapsack_dynamic_programming_autoprint(
         weight_limit,
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
-    let max_profit = knapsack_dynamic_programming(&items, weight_limit);
-    println!("Maximum reachable profit: {:?}", max_profit);
+    let knapsack = knapsack_dynamic_programming(&items, weight_limit);
+    println!("Knapsack: {:#?}", knapsack);
+    println!(
+        "Total profit: {}",
+        knapsack.iter().map(|item| item.profit).sum::<u64>()
+    );
+    println!(
+        "Total weight {} of allowed weight limit {}",
+        knapsack.iter().map(|item| item.weight).sum::<u64>(),
+        weight_limit
+    );
     Ok(())
 }
 

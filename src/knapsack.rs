@@ -11,6 +11,7 @@ use std::ops::{Deref, Not};
 
 use fraction::Fraction;
 use itertools::Itertools;
+use log::log_enabled;
 use serde::Deserialize;
 
 // ------- Item ----------------------------------
@@ -201,76 +202,117 @@ where
 
 /// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
 /// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming).
-pub fn knapsack_dynamic_programming<ItemIter, ItemRef>(items: ItemIter, weight_capacity: u64) -> u64
+pub fn knapsack_dynamic_programming<'a, ItemIter, ItemRef>(
+    items: ItemIter,
+    weight_capacity: u64,
+) -> Vec<&'a ItemRef>
 where
-    ItemIter: IntoIterator<Item = ItemRef>,
+    ItemIter: IntoIterator<Item = &'a ItemRef>,
     ItemRef: Borrow<Item>,
 {
-    // table is a list of iterations. Each iteration contains a set of sum that are producible by using (some of)
-    // the first i numbers.
-    let mut table = vec![0u64; (weight_capacity + 1) as usize];
-    // The number 0 can be produced with the first 0 numbers. Because we want to examine total_sum itself,
-    // it must be included in the vec. Therefore we must add 1, so that table[0][weight_capacity] is defined.
-    log::debug!("weight_limits={:?}", (0..table.len()).collect_vec());
+    // Row stores the current row. Each cell contains a list of items, which are included in the knapsack. This takes
+    // the first item_nr items into account and the knapsack limited by the weight specified by the index of the cell.
+    let mut row: Vec<Vec<&ItemRef>> = vec![Vec::new(); (weight_capacity + 1) as usize];
 
-    // Examine which numbers are producible by using a new number from the number list.
+    // Print the weight limits for each cell, which is just its index
+    log::debug!("weight_limits={:?}", (0..row.len()).collect_vec());
+
+    // Examine which profits are producible by using a new item from the item list.
     for (item_nr, item) in items.into_iter().enumerate() {
         // Create the new row by inspecting the old one and inspect if improvement can be made by using the new item.
-        for index in (0..table.len()).rev() {
+        // Because we override the old row, we go from right ro left.
+        for index in (0..row.len()).rev() {
             let current_weight_limit = index;
-            let old_profit = table[index];
-            // Why item_nr + 1? The first new item corresponds to row=1.
-            let row = item_nr + 1;
-            // This is the profit we will insert into this cell. This is determined by the if-else blocks below
-            let profit: u64;
-
-            // How much profit is possible with the new item?
-            let new_reachable_profit = {
-                // How much capacity would be free, if we use new_item here?
-                let remaining_weight =
-                    current_weight_limit.saturating_sub(item.borrow().weight as usize);
-                // What profit can be reached with the remaining weight?
-                let additional_profit = table[remaining_weight];
-                // As result, we can get the profit of the new item + the profit reachable with the weight left
-                item.borrow().profit + additional_profit
-            };
-            log::trace!(
-                "New item id={}, weight={}, with current_weight_capacity={}, new_reachable_profit={}",
+            /*log::trace!(
+                "New item id={}, weight={}, profit={} with weight_limit={}",
                 item.borrow().id,
                 item.borrow().weight,
+                item.borrow().profit,
                 current_weight_limit,
-                new_reachable_profit
-            );
+            );*/
+
+            // Can we afford the item?
             if item.borrow().weight > current_weight_limit as u64 {
                 // Item is too expensive / weights to much
-                profit = old_profit;
                 log::debug!(
-                    "Item id={} at index={} is too expensive",
+                    "Item id={} with weight={} at index={} is too expensive for weight_limit={}",
                     item.borrow().id,
-                    index
+                    item.borrow().weight,
+                    index,
+                    current_weight_limit
                 );
-            } else if new_reachable_profit <= old_profit {
-                // Item brings no improvement
-                profit = old_profit;
-                log::debug!(
-                    "Item id={} at index={} brings no improvement",
-                    item.borrow().id,
-                    index
-                );
-            } else {
-                // We can afford the item and it brings improvement
-                profit = new_reachable_profit;
-                log::debug!(
-                    "Item id={} at index={} is affordable and brings improvement",
-                    item.borrow().id,
-                    index
-                );
+                continue;
             }
-            table[index] = profit;
+
+            // If we would take item, how much profit would be reachable with it?
+
+            // How much weight would be free, if we use the new item?
+            let remaining_weight =
+                current_weight_limit.saturating_sub(item.borrow().weight as usize);
+            assert!(
+                remaining_weight < row.len(),
+                "More weight reaming than slots allocated in the row. This is a logic error"
+            );
+            // What profit can be reached with the remaining weight?
+            let other_items = &row[remaining_weight];
+            let additional_profit: u64 = other_items
+                .iter()
+                .map(|item| item.deref().borrow().profit)
+                .sum();
+
+            // As result, we can get the profit of the new item + the profit reachable with the weight left
+            let new_profit = item.borrow().profit + additional_profit;
+
+            // Calculate old profit, to see whether the new profit is better
+            let old_profit: u64 = row[index]
+                .iter()
+                .map(|item| item.deref().borrow().profit)
+                .sum();
+
+            if new_profit <= old_profit {
+                // Item brings no improvement
+                log::debug!(
+                    "Item id={} at index={} would bring profit={}. This is no improvement to old profit={}",
+                    item.borrow().id,
+                    index,
+                    new_profit,
+                    old_profit
+                );
+                continue;
+            }
+
+            // We can afford the item and it brings improvement
+            log::debug!(
+                "Item id={} at index={} is affordable and brings improvement. Profit={} instead of old profit={}",
+                item.borrow().id,
+                index,
+                new_profit,
+                old_profit
+            );
+            row[index] = {
+                let mut new_knapsack = other_items.clone();
+                new_knapsack.push(&item);
+                new_knapsack
+            };
         }
-        log::info!("Row i={}: {:?}", item_nr, table);
+
+        // Print the profit for each cell. Only do this computation when logging is enabled for this level.
+        let profits_log_level = log::Level::Info;
+        if log_enabled!(profits_log_level) {
+            // Sum the profit of each knapsack
+            let row_profits: Vec<u64> = row
+                .iter()
+                .map(|knapsack| {
+                    knapsack
+                        .iter()
+                        .map(|item| item.deref().borrow().profit)
+                        .sum::<u64>()
+                })
+                .collect();
+            log::log!(profits_log_level, "Row i={}: {:?}", item_nr, row_profits);
+        }
     }
-    table.last().cloned().unwrap_or(0)
+    row.pop().unwrap_or_default()
 }
 
 /// Solves the decision problem [0-1-knapsack](https://en.wikipedia.org/wiki/Knapsack_problem)
@@ -682,45 +724,52 @@ mod test {
     fn test_maximum_knapsack() {
         let max_knapsack_items = [
             Item {
-                id: 1,
+                id: 0,
                 profit: 6,
                 weight: 2,
             },
             Item {
-                id: 2,
+                id: 1,
                 profit: 5,
                 weight: 3,
             },
             Item {
-                id: 3,
+                id: 2,
                 profit: 8,
                 weight: 6,
             },
             Item {
-                id: 4,
+                id: 3,
                 profit: 9,
                 weight: 7,
             },
             Item {
-                id: 5,
+                id: 4,
                 profit: 6,
                 weight: 5,
             },
             Item {
-                id: 6,
+                id: 5,
                 profit: 7,
                 weight: 9,
             },
             Item {
-                id: 7,
+                id: 6,
                 profit: 3,
                 weight: 4,
             },
         ];
-        let weight_capacity = 9;
-        let actual_table = knapsack_dynamic_programming(&max_knapsack_items, weight_capacity);
-        let expected_table = [0, 0, 6, 6, 6, 11, 11, 12, 14, 15];
-        assert_eq!(actual_table, expected_table);
+        let weight_limit = 9;
+        let actual_knapsack = knapsack_dynamic_programming(&max_knapsack_items, weight_limit);
+        assert!(
+            actual_knapsack.iter().map(|item| item.weight).sum::<u64>() <= weight_limit,
+            "Knapsack solution too heavy"
+        );
+        let expected_knapsack = [&max_knapsack_items[0], &max_knapsack_items[3]];
+        assert_eq!(
+            actual_knapsack, expected_knapsack,
+            "Algorithm chose the wrong items"
+        );
     }
 
     #[test]
