@@ -20,8 +20,12 @@ fraction = "0.9.0"
 # Logger abstraction
 log = "0.4.14"
 
-# Logger implementation.
-# Disable timestamps via disable-features=false.
-# Print to stderr and use colors.
-simple_logger = { version = "2.1.0", default-features=false, features=["stderr", "colors"] }
+# Logger implementation
+env_logger = "0.9.0"
+
+
+# Support for error contexts
 anyhow = "1.0.53"
+
+# Advanced iterator functions
+itertools = "0.10.3"

@@ -11,7 +11,7 @@ pub(crate) struct CliArgs {
 #[argh(subcommand)]
 pub(crate) enum CliCommands {
     FractionalKnapsack(FractionalKnapsack),
-    MaximumKnapsack(MaximumKnapsack),
+    MaximumKnapsackDynamicProgramming(MaximumKnapsackDynamicProgramming),
     SubsetSumRowSumSet(SubsetSumRowSumSet),
     SubsetSumFullBoolTable(SubsetSumFullBoolTable),
     Knapsack01(Knapsack01),
@@ -31,19 +31,24 @@ pub(crate) struct FractionalKnapsack {
 
     /// maximum weight of the knapsack.
     #[argh(positional)]
-    pub(crate) weight_capacity: u64,
+    pub(crate) weight_limit: u64,
 }
 
-/// MaximumKnapsack
+/// Solve maximum knapsack with dynamic programming.
 #[derive(FromArgs, PartialEq, Debug)]
-#[argh(subcommand, name = "max-ks")]
-pub(crate) struct MaximumKnapsack {
+#[argh(subcommand, name = "max-ks-dp")]
+pub(crate) struct MaximumKnapsackDynamicProgramming {
     /// path to a csv file with the input elements (id, weight, profit).
     #[argh(positional)]
-    pub(crate) csv_file: String,
+    pub(crate) items_csv: String,
+
     /// enable this flag if your CSV is written from left to right.
     #[argh(switch, short = 'f')]
     pub(crate) flipped_csv: bool,
+
+    /// maximum weight of the knapsack.
+    #[argh(positional)]
+    pub(crate) weight_limit: u64,
 }
 
 /// SubsetSumRowSumSet

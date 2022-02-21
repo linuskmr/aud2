@@ -1,6 +1,6 @@
 mod cli;
 
-use crate::cli::{CliCommands, FractionalKnapsack};
+use crate::cli::{CliArgs, CliCommands, FractionalKnapsack};
 use anyhow::Context;
 use aud2::knapsack::{
     fractional_knapsack_greedy, knapsack_dynamic_programming, knapsack_integer_greedy, Item,
@@ -16,20 +16,23 @@ fn main() -> anyhow::Result<()> {
     let cli_args: cli::CliArgs = argh::from_env();
     match cli_args.subcommand {
         CliCommands::FractionalKnapsack(frac_knapsack) => {
-            fractional_knapsack_autoprint(frac_knapsack)
+            fractional_knapsack_greedy_autoprint(frac_knapsack)
+        }
+        CliCommands::MaximumKnapsackDynamicProgramming(max_knapsack) => {
+            maximum_knapsack_dynamic_programming_autoprint(max_knapsack)
         }
         _ => unimplemented!(),
     }
 }
 
 /// Calls the library function fractional_knapsack() and prints its results.
-fn fractional_knapsack_autoprint(cli_args: cli::FractionalKnapsack) -> anyhow::Result<()> {
+fn fractional_knapsack_greedy_autoprint(cli_args: cli::FractionalKnapsack) -> anyhow::Result<()> {
     let FractionalKnapsack {
         items_csv,
-        weight_capacity,
+        weight_limit: weight_capacity,
         flipped_csv,
     } = cli_args;
-    let items = read_csv(&items_csv, flipped_csv)?;
+    let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
 
     let chosen_items = fractional_knapsack_greedy(&items, weight_capacity);
     for chosen_item in &chosen_items {
@@ -66,14 +69,21 @@ fn subset_sum2_autoprint(numbers: &[u64]) {
     println!("{:?}", table);
 }
 
-fn maximum_knapsack_autoprint(items: &[Item], weight_capacity: u64) {
-    let table = knapsack_dynamic_programming(items, weight_capacity);
-    for (i, row) in table.iter().enumerate() {
-        println!("i={}: {:?}", i, row);
-    }
+fn maximum_knapsack_dynamic_programming_autoprint(
+    cli_args: cli::MaximumKnapsackDynamicProgramming,
+) -> anyhow::Result<()> {
+    let cli::MaximumKnapsackDynamicProgramming {
+        items_csv,
+        flipped_csv,
+        weight_limit,
+    } = cli_args;
+    let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
+    let max_profit = knapsack_dynamic_programming(&items, weight_limit);
+    println!("Maximum reachable profit: {:?}", max_profit);
+    Ok(())
 }
 
-fn knapsack_0_1_autoprint(items: &[Item], weight_capacity: u64) {
+fn knapsack_integer_greedy_autoprint(items: &[Item], weight_capacity: u64) {
     let knapsack = knapsack_integer_greedy(items, weight_capacity);
     println!("Knapsack: {:#?}", knapsack);
 }
@@ -136,5 +146,5 @@ where
 
 /// Initialize the logger.
 fn init_logger() {
-    simple_logger::SimpleLogger::new().init().unwrap();
+    env_logger::init();
 }

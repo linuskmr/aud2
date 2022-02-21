@@ -7,13 +7,15 @@
 use std::borrow::Borrow;
 use std::cmp::{max, Ordering};
 use std::fmt;
+use std::ops::{Deref, Not};
 
 use fraction::Fraction;
+use itertools::Itertools;
 use serde::Deserialize;
 
 // ------- Item ----------------------------------
 
-/// An item is an object that has a profit and weight. An item can be put into a knapsack, which caused the item to be
+/// An item is an object that has a profit and weight. An item can be put into a knapsack, which causes the item to be
 /// wrapped in an [PackedItem].
 #[derive(Eq, PartialEq, Clone, Deserialize)]
 pub struct Item {
@@ -26,16 +28,28 @@ pub struct Item {
 }
 
 impl Item {
-    /// Calculates `weight / profit`. This is an indicator how much value an item has. The lower the ratio, the better it is.
-    /// A low ratio means much profit at low weight. A high ratio means low profit at high weight.
-    fn weight_profit_ratio(&self) -> f64 {
+    /// Calculates `weight / profit`. This is an indicator how much value an item has. The lower the ratio, the better
+    /// it is. A low ratio means much profit at low weight. A high ratio means low profit at high weight.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use aud2::knapsack::Item;
+    /// let item = Item {
+    ///     id: 0,
+    ///     profit: 5,
+    ///     weight: 2
+    /// };
+    /// assert_eq!(item.weight_profit_ratio(), 2.0/5.0);
+    /// ```
+    pub fn weight_profit_ratio(&self) -> f64 {
         (self.weight as f64) / (self.profit as f64)
     }
 }
 
 // ------- KnapsackItem ----------------------------------
 
-/// A [Item] that was put inside a knapsack, storing how much of the item or how many items were put into the knapsack.
+/// An [Item] that was put inside a knapsack, storing how much of the item or how many items were put into the knapsack.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PackedItem<TakePortion, ItemRef>
 where
@@ -106,12 +120,23 @@ impl Ord for Item {
 
 /// Solves the [fractional knapsack problem](https://en.wikipedia.org/wiki/Continuous_knapsack_problem) by using the
 /// [greedy algorithm](https://en.wikipedia.org/wiki/Greedy_algorithm).
-pub fn fractional_knapsack_greedy<'a, ItemRef>(
-    items: &'a [ItemRef],
+///
+/// # Arguments
+/// * `items` - Something that can be turned into an iterator yielding references to [Item]s or something that can be
+/// borrowed as [Item].
+/// * `weight_limit`: The maximum allowed weight of the knapsack.
+///
+/// # Returns
+///
+/// A list of [PackedItem]s. They contain a fraction of how much of the item was put into the knapsack. This is a value
+/// between 0 (exclusive) and 1 (inclusive). [Item]s that were not chosen are not contained in this list.
+pub fn fractional_knapsack_greedy<'a, ItemRef, ItemIter>(
+    items: ItemIter,
     weight_limit: u64,
 ) -> Vec<PackedItem<Fraction, &'a ItemRef>>
 where
     &'a ItemRef: Borrow<Item>,
+    ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
     // Sort items ascending according to their weight profit ratio. This causes valuable elements to be at the front
     // and not so valuable elements at the back.
@@ -176,77 +201,76 @@ where
 
 /// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
 /// [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming).
-pub fn knapsack_dynamic_programming<I>(items: &[I], weight_capacity: u64) -> Vec<Vec<u64>>
+pub fn knapsack_dynamic_programming<ItemIter, ItemRef>(items: ItemIter, weight_capacity: u64) -> u64
 where
-    I: Borrow<Item>,
+    ItemIter: IntoIterator<Item = ItemRef>,
+    ItemRef: Borrow<Item>,
 {
     // table is a list of iterations. Each iteration contains a set of sum that are producible by using (some of)
     // the first i numbers.
-    let mut table: Vec<Vec<u64>> = Vec::with_capacity(items.len());
-    if items.len() == 0 {
-        return table;
-    }
+    let mut table = vec![0u64; (weight_capacity + 1) as usize];
     // The number 0 can be produced with the first 0 numbers. Because we want to examine total_sum itself,
     // it must be included in the vec. Therefore we must add 1, so that table[0][weight_capacity] is defined.
-    table.push(vec![0u64; (weight_capacity + 1) as usize]);
+    log::debug!("weight_limits={:?}", (0..table.len()).collect_vec());
 
     // Examine which numbers are producible by using a new number from the number list.
-    for (new_item_index, new_item) in items.iter().enumerate() {
-        let last_row = table.last().expect("Table always contains one row");
-        let mut new_row = Vec::with_capacity(last_row.len());
+    for (item_nr, item) in items.into_iter().enumerate() {
         // Create the new row by inspecting the old one and inspect if improvement can be made by using the new item.
-        for (current_weight_capacity, old_profit) in last_row.iter().enumerate() {
-            // Why new_item_index + 1? The first new item corresponds to row=1.
-            let (row, column) = (new_item_index + 1, current_weight_capacity);
-            // This is the profit we insert into this cell. This is determined by the if-else blocks below
+        for index in (0..table.len()).rev() {
+            let current_weight_limit = index;
+            let old_profit = table[index];
+            // Why item_nr + 1? The first new item corresponds to row=1.
+            let row = item_nr + 1;
+            // This is the profit we will insert into this cell. This is determined by the if-else blocks below
             let profit: u64;
+
             // How much profit is possible with the new item?
             let new_reachable_profit = {
                 // How much capacity would be free, if we use new_item here?
-                let free_weight_capacity =
-                    current_weight_capacity.saturating_sub(new_item.borrow().weight as usize);
-                // What profit can be reached with the capacity left?
-                let profit_reachable_with_left_weight = last_row[free_weight_capacity];
-                // In the end, we can get the profit of the new item + the profit reachable with the weight left
-                new_item.borrow().profit + profit_reachable_with_left_weight
+                let remaining_weight =
+                    current_weight_limit.saturating_sub(item.borrow().weight as usize);
+                // What profit can be reached with the remaining weight?
+                let additional_profit = table[remaining_weight];
+                // As result, we can get the profit of the new item + the profit reachable with the weight left
+                item.borrow().profit + additional_profit
             };
-            log::info!(
+            log::trace!(
                 "New item id={}, weight={}, with current_weight_capacity={}, new_reachable_profit={}",
-                new_item.borrow().id,
-                new_item.borrow().weight,
-                current_weight_capacity,
+                item.borrow().id,
+                item.borrow().weight,
+                current_weight_limit,
                 new_reachable_profit
             );
-            if new_item.borrow().weight > current_weight_capacity as u64 {
+            if item.borrow().weight > current_weight_limit as u64 {
                 // Item is too expensive / weights to much
-                profit = *old_profit;
+                profit = old_profit;
                 log::debug!(
-                    "New item in row={} at column={} is too expensive",
-                    row,
-                    column
+                    "Item id={} at index={} is too expensive",
+                    item.borrow().id,
+                    index
                 );
-            } else if new_reachable_profit <= *old_profit {
+            } else if new_reachable_profit <= old_profit {
                 // Item brings no improvement
-                profit = *old_profit;
+                profit = old_profit;
                 log::debug!(
-                    "New item in row={} at column={} brings no improvement",
-                    row,
-                    column
+                    "Item id={} at index={} brings no improvement",
+                    item.borrow().id,
+                    index
                 );
             } else {
                 // We can afford the item and it brings improvement
                 profit = new_reachable_profit;
                 log::debug!(
-                    "New item in row={} at index={} is affordable and brings improvement",
-                    row,
-                    column
+                    "Item id={} at index={} is affordable and brings improvement",
+                    item.borrow().id,
+                    index
                 );
             }
-            new_row.push(profit);
+            table[index] = profit;
         }
-        table.push(new_row);
+        log::info!("Row i={}: {:?}", item_nr, table);
     }
-    table
+    table.last().cloned().unwrap_or(0)
 }
 
 /// Solves the decision problem [0-1-knapsack](https://en.wikipedia.org/wiki/Knapsack_problem)
@@ -314,7 +338,52 @@ where
     knapsack
 }
 
-pub fn knapsack_branch_and_bound<'a, ItemRef, ItemIter>(items: ItemIter, weight_limit: u64) -> u64
+/*
+pub fn greedy_k<ItemRef, ItemIter>(items: ItemIter, weight_limit: u64, k: usize)
+where
+    ItemRef: Borrow<Item> + Clone + PartialEq,
+    ItemIter: IntoIterator<Item = ItemRef>,
+{
+    let items = Vec::from_iter(items);
+
+    // Get all combinations with k elements and fix and include them
+    let knapsack = Itertools::combinations(items.iter(), k)
+        // Remove combinations with too much weight
+        .filter(|fixed_items| {
+            let weight: u64 = fixed_items
+                .iter()
+                .map(|item| item.deref().borrow().weight)
+                .sum();
+            weight < weight_limit
+        })
+        // Do a normal integer greedy with the remaining items
+        .map(|fixed_items| {
+            let remaining_items = items.iter().filter(|item| fixed_items.contains(item).not());
+            let remaining_weight: u64 = fixed_items
+                .iter()
+                .map(|item| item.deref().borrow().weight)
+                .sum();
+            let remaining_items_vec: Vec<&ItemRef> = remaining_items.collect();
+            let remaining_greedy = knapsack_integer_greedy(remaining_items_vec, remaining_weight);
+            let mut knapsack = remaining_greedy;
+            knapsack.extend_from_slice(fixed_items.as_slice());
+            knapsack
+        })
+        // Get the best knapsack, i.e. the selection with the most profit
+        .max_by_key(|items| {
+            items
+                .iter()
+                .map(|item| item.deref().borrow().profit)
+                .sum::<u64>()
+        })
+        // Get either the result or an empty vec
+        .unwrap_or_default();
+
+    println!("{:#?}", knapsack);
+}
+*/
+
+/* pub fn knapsack_branch_and_bound<'a, ItemRef, ItemIter>(items: ItemIter, weight_limit: u64) -> u64
 where
     ItemRef: 'a,
     &'a ItemRef: Borrow<Item>,
@@ -354,19 +423,26 @@ fn knapsack_branch_and_bound_recursive<'a, ItemRef, ItemIter>(
 where
     ItemRef: 'a,
     &'a ItemRef: Borrow<Item>,
-    ItemIter: 'a,
-    &'a ItemIter: IntoIterator<Item = &'a ItemRef>,
+    ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
     let mut best_profit = best_profit;
+    let items = Vec::from_iter(items);
 
-    let lower_bound =
-        current_profit + items_profit_sum(knapsack_integer_greedy(&items, weight_limit));
+    let lower_bound: u64 = current_profit
+        + items_profit_sum(knapsack_integer_greedy(
+            items.iter().map(|&item| item),
+            weight_limit,
+        ));
     // Profit improved? If yes, set it
     best_profit = max(best_profit, lower_bound);
 
     // Relaxation of upper bound: Integer knapsack can never reach a decimal profit, so we can round it down
-    let upper_bound = current_profit
-        + (packed_items_profit_sum(fractional_knapsack_greedy(&items, weight_limit)) as u64);
+    let upper_bound: u64 = {
+        let packed_items = fractional_knapsack_greedy(items, weight_limit);
+        let packed_items_profit = packed_items_profit_sum(&packed_items);
+        let packed_items_profit = fraction_to_u64(&packed_items_profit);
+        current_profit + packed_items_profit
+    };
 
     if upper_bound > best_profit {
         let (first, tail) = match items.split_first() {
@@ -376,14 +452,14 @@ where
         };
 
         let profit_exclude_first = knapsack_branch_and_bound_recursive(
-            tail,           // items
-            weight_limit,   // weight_limit
-            current_profit, // current_profit
-            best_profit,    // best_profit
+            tail.into_iter().map(|item| *item), // items
+            weight_limit,                       // weight_limit
+            current_profit,                     // current_profit
+            best_profit,                        // best_profit
         );
 
         let profit_include_first = knapsack_branch_and_bound_recursive(
-            tail,                                   // items
+            tail.into_iter().map(|item| *item),     // items
             weight_limit - first.borrow().weight,   // weight_limit
             current_profit + first.borrow().profit, // current_profit
             best_profit,                            // best_profit
@@ -436,29 +512,46 @@ where
             packed_items_profit_sum(fractional_knapsack(tail, weight_limit)) as u64;
     };*/
     best_profit
-}
+}*/
 
 /// Calculates the total profit of all items.
 fn items_profit_sum<'a, ItemRef, Iter>(items: Iter) -> u64
 where
     ItemRef: 'a, // The items yielded by the iterator may life as long as this function
-    ItemRef: Borrow<Item>, // The item types yielded by the iterator may be borrowed as items
+    &'a ItemRef: Borrow<Item>, // The item types yielded by the iterator may be borrowed as items
     Iter: IntoIterator<Item = &'a ItemRef>, // The iterator yields references to ItemRefs
 {
-    items.into_iter().map(|item| item.borrow().weight).sum()
+    items.into_iter().map(|item| (&item).borrow().weight).sum()
 }
 
 /// Calculates the total effective profit of all items.
 fn packed_items_profit_sum<'a, IterItem, Iter>(items: Iter) -> Fraction
 where
     IterItem: 'a,
-    IterItem: Borrow<Item>,
-    Iter: IntoIterator<Item = &'a PackedItem<Fraction, IterItem>>,
+    &'a IterItem: Borrow<Item>,
+    Iter: IntoIterator<Item = &'a PackedItem<Fraction, &'a IterItem>>,
 {
     items
         .into_iter()
         .map(|item| item.borrow().effective_profit())
         .sum()
+}
+
+/// Converts a [Fraction] into a u64 by removing the digits after the dot and parsing its string representation.
+///
+/// # Examples
+///
+/// ```
+/// # use fraction::Fraction;
+/// # use aud2::knapsack::fraction_to_u64;
+/// assert_eq!(fraction_to_u64(Fraction::from(1)), 1);
+/// assert_eq!(fraction_to_u64(Fraction::from(4.2)), 4);
+/// assert_eq!(fraction_to_u64(Fraction::from(2.9)), 2);
+/// ```
+pub fn fraction_to_u64(fraction: impl Borrow<Fraction>) -> u64 {
+    format!("{:.0}", fraction.borrow())
+        .parse()
+        .expect("Parsing fraction with 0 zero digits after the dot always succeeds")
 }
 
 #[cfg(test)]
@@ -626,16 +719,7 @@ mod test {
         ];
         let weight_capacity = 9;
         let actual_table = knapsack_dynamic_programming(&max_knapsack_items, weight_capacity);
-        let expected_table = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 6, 6, 6, 6, 6, 6, 6, 6],
-            [0, 0, 6, 6, 6, 11, 11, 11, 11, 11],
-            [0, 0, 6, 6, 6, 11, 11, 11, 14, 14],
-            [0, 0, 6, 6, 6, 11, 11, 11, 14, 15],
-            [0, 0, 6, 6, 6, 11, 11, 12, 14, 15],
-            [0, 0, 6, 6, 6, 11, 11, 12, 14, 15],
-            [0, 0, 6, 6, 6, 11, 11, 12, 14, 15],
-        ];
+        let expected_table = [0, 0, 6, 6, 6, 11, 11, 12, 14, 15];
         assert_eq!(actual_table, expected_table);
     }
 
