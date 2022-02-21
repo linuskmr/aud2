@@ -17,7 +17,7 @@ use serde::Deserialize;
 // ------- Item ----------------------------------
 
 /// An item is an object that has a profit and weight. An item can be put into a knapsack, which causes the item to be
-/// wrapped in an [PackedItem].
+/// wrapped in an [PartialPackedItem].
 #[derive(Eq, PartialEq, Clone, Deserialize)]
 pub struct Item {
     /// An unique identifier.
@@ -35,35 +35,50 @@ impl Item {
     /// # Examples
     ///
     /// ```
+    /// # use fraction::Fraction;
     /// # use aud2::knapsack::Item;
     /// let item = Item {
     ///     id: 0,
     ///     profit: 5,
     ///     weight: 2
     /// };
-    /// assert_eq!(item.weight_profit_ratio(), 2.0/5.0);
+    /// assert_eq!(item.weight_profit_ratio(), Fraction::new(2u64, 5u64));
     /// ```
-    pub fn weight_profit_ratio(&self) -> f64 {
-        (self.weight as f64) / (self.profit as f64)
+    pub fn weight_profit_ratio(&self) -> Fraction {
+        Fraction::new(self.weight, self.profit)
     }
 }
 
-// ------- KnapsackItem ----------------------------------
+// Include the weight_profit_ratio in the debug output.
+impl fmt::Debug for Item {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Item")
+            .field("id", &self.id)
+            .field("weight", &self.weight)
+            .field("profit", &self.profit)
+            .field(
+                "weight_profit_ratio",
+                &format!("{:.4}", self.weight_profit_ratio()),
+            )
+            .finish()
+    }
+}
 
-/// An [Item] that was put inside a knapsack, storing how much of the item or how many items were put into the knapsack.
+// ------- PartialPackedItem ----------------------------------
+
+/// An [Item] that was put inside a knapsack, storing how much of the item was put into the knapsack.
 #[derive(Debug, PartialEq, Clone)]
-pub struct PackedItem<TakePortion, ItemRef>
+pub struct PartialPackedItem<ItemRef>
 where
     ItemRef: Borrow<Item>,
 {
     /// The original item.
     pub item: ItemRef,
-    /// A number indicating how much of the item or how many items were put into the knapsack.
-    pub take_portion: TakePortion,
+    /// A fraction indicating how much of the item was put into the knapsack.
+    pub take_portion: Fraction,
 }
 
-// Partial packed items
-impl<ItemRef> PackedItem<Fraction, ItemRef>
+impl<ItemRef> PartialPackedItem<ItemRef>
 where
     ItemRef: Borrow<Item>,
 {
@@ -75,18 +90,6 @@ where
     /// Calculates the profit this items gives considering its take_fraction, i.e partial packed items.
     pub fn effective_profit(&self) -> Fraction {
         Fraction::from(self.item.borrow().profit) * self.take_portion
-    }
-}
-
-// Include the weight_profit_ratio in the debug output.
-impl fmt::Debug for Item {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Item")
-            .field("id", &self.id)
-            .field("weight", &self.weight)
-            .field("profit", &self.profit)
-            .field("weight_profit_ratio", &self.weight_profit_ratio())
-            .finish()
     }
 }
 
@@ -134,8 +137,9 @@ impl Ord for Item {
 pub fn fractional_knapsack_greedy<'a, ItemRef, ItemIter>(
     items: ItemIter,
     weight_limit: u64,
-) -> Vec<PackedItem<Fraction, &'a ItemRef>>
+) -> Vec<PartialPackedItem<&'a ItemRef>>
 where
+    ItemRef: Borrow<Item>,
     &'a ItemRef: Borrow<Item>,
     ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
@@ -156,7 +160,7 @@ where
     }
 
     // Items that are selected for to be contained in the knapsack
-    let mut knapsack: Vec<PackedItem<Fraction, &ItemRef>> = Vec::new();
+    let mut knapsack: Vec<PartialPackedItem<&ItemRef>> = Vec::new();
 
     for (item_index, new_item) in items_sorted_asc.iter().enumerate() {
         // Calculate already used weight, remaining available weight and the currently reached profit
@@ -188,7 +192,7 @@ where
             }
         };
         // Add item to knapsack
-        let knapsack_item = PackedItem {
+        let knapsack_item = PartialPackedItem {
             item: *new_item,
             take_portion: take_fraction,
         };
@@ -571,7 +575,7 @@ fn packed_items_profit_sum<'a, IterItem, Iter>(items: Iter) -> Fraction
 where
     IterItem: 'a,
     &'a IterItem: Borrow<Item>,
-    Iter: IntoIterator<Item = &'a PackedItem<Fraction, &'a IterItem>>,
+    Iter: IntoIterator<Item = &'a PartialPackedItem<&'a IterItem>>,
 {
     items
         .into_iter()
@@ -688,31 +692,31 @@ mod test {
         let weight_capacity = 120;
         let actual_chosen_items = fractional_knapsack_greedy(&ITEMS, weight_capacity);
         let expected_chosen_items = vec![
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[5],
                 take_portion: 1.0.into(),
             },
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[3],
                 take_portion: 1.0.into(),
             },
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[12],
                 take_portion: 1.0.into(),
             },
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[11],
                 take_portion: 1.0.into(),
             },
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[2],
                 take_portion: 1.0.into(),
             },
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[8],
                 take_portion: 1.0.into(),
             },
-            PackedItem {
+            PartialPackedItem {
                 item: &ITEMS[14],
                 take_portion: Fraction::new(6u64, 10u64),
             },

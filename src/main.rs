@@ -4,7 +4,7 @@ use crate::cli::{CliArgs, CliCommands, FractionalKnapsack};
 use anyhow::Context;
 use aud2::knapsack::{
     fractional_knapsack_greedy, knapsack_dynamic_programming, knapsack_integer_greedy, Item,
-    PackedItem,
+    PartialPackedItem,
 };
 use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
 use fraction::Fraction;
@@ -41,7 +41,10 @@ fn fractional_knapsack_greedy_autoprint(cli_args: cli::FractionalKnapsack) -> an
             chosen_item.item.id, chosen_item.take_portion
         );
     }
-    let total_profit: Fraction = chosen_items.iter().map(PackedItem::effective_profit).sum();
+    let total_profit: Fraction = chosen_items
+        .iter()
+        .map(PartialPackedItem::effective_profit)
+        .sum();
     println!("total_profit={}", total_profit);
 
     Ok(())
