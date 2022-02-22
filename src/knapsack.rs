@@ -481,6 +481,19 @@ where
         .unwrap_or_default()
 }
 
+/// Solves the [maximum knapsack problem](https://en.wikipedia.org/wiki/Knapsack_problem) with
+/// [branch and bound](https://en.wikipedia.org/wiki/Branch_and_bound).
+/// The returned solution is optimal.
+///
+/// # Arguments
+///
+/// * items - List of objects that can be borrowed as an [Item]. It is assumed that the items are already sorted.
+/// The trick is that this is a reference, so that this function is able to iterate over items multiple times.
+/// * weight_limit - The currently remaining weight limit. This includes weight consumes by earlier decisions
+///
+/// # Returns
+///
+/// The knapsack, i.e. all items that are chosen to be in the knapsack.
 pub fn branch_and_bound<'a, ItemRef, ItemIter>(
     items: &'a ItemIter,
     weight_limit: u64,
@@ -504,12 +517,17 @@ where
 ///
 /// # Arguments
 ///
-/// * items - List of objects that can be borrowed as an [Item]. It is assumed that the items are already sorted.
-/// The trick is that this is a reference, so that this function is able to iterate over items multiple times.
+/// * items - List of objects that can be borrowed as an [Item]. [Items] which should be excluded may not be included in
+/// this list. It is assumed that the items are already sorted. The trick is that this is a reference, so that this
+/// function is able to iterate over items multiple times.
 /// * weight_limit - The currently remaining weight limit. This includes weight consumes by earlier decisions
 /// about whether items should be included or excluded.
-/// * current_profit - The reached profit from earlier decisions whether items should be included or excluded.
+/// * fixed_items - Items which are fixed, i.e. always included.
 /// * best_profit - The currently best known profit.
+///
+/// # Returns
+///
+/// The knapsack, i.e. all items that are chosen to be in the knapsack.
 fn branch_and_bound_recursive<'a, 'b, ItemRef>(
     items: &'b [&'a ItemRef],
     weight_limit: u64,
@@ -520,69 +538,65 @@ where
     ItemRef: Borrow<Item>,
 {
     let mut best_knapsack: Vec<&ItemRef> = best_knapsack.to_vec();
-    // Helper function that calculates the total profit of a knapsack
-    let calc_profit = |knapsack: &[&ItemRef]| {
-        knapsack
-            .iter()
-            .map(|&item| item.borrow().profit)
-            .sum::<u64>()
-    };
 
     // First, calculate the lower bound. Then, update best_knapsack, if lower bound is an improvement
     let lower_bound_knapsack: Vec<&ItemRef> = {
-        let mut lower_bound_knapsack =
-            integer_greedy(items.into_iter().map(|&item| item), weight_limit);
+        let mut lower_bound_knapsack = integer_greedy(items.iter().copied(), weight_limit);
         lower_bound_knapsack.extend(fixed_items);
         lower_bound_knapsack
     };
-    let lower_bound_profit = calc_profit(&lower_bound_knapsack);
-    if lower_bound_profit > calc_profit(&best_knapsack) {
+    let lower_bound_profit = knapsack_profit(&lower_bound_knapsack);
+    if lower_bound_profit > knapsack_profit(&best_knapsack) {
         // Would lower_bound be an improvement? If yes, update it
         best_knapsack = lower_bound_knapsack;
     }
 
+    // Secondly, calculate the upper bound
     let upper_bound_profit = {
-        let packed_items = fractional_greedy(items.into_iter().map(|&item| item), weight_limit);
+        let packed_items = fractional_greedy(items.iter().copied(), weight_limit);
         let upper_bound_profit: Fraction = packed_items
             .into_iter()
             .map(|packed_item| packed_item.effective_profit())
             .sum();
         // Relaxation of upper bound: Round upper bound down, since integer knapsack can never reach a decimal profit.
         let upper_bound_profit = fraction_to_u64(upper_bound_profit);
-        upper_bound_profit + calc_profit(&fixed_items)
+        upper_bound_profit + knapsack_profit(fixed_items)
     };
 
     log::info!(
         "lower_bound={} upper_bound={} current_best={}",
         lower_bound_profit,
         upper_bound_profit,
-        calc_profit(&best_knapsack)
+        knapsack_profit(&best_knapsack)
     );
 
-    if upper_bound_profit <= calc_profit(&best_knapsack) {
+    // Is it worth it to analyse the subtree?
+    if upper_bound_profit <= knapsack_profit(&best_knapsack) {
         // Skip subtree because it can not be better than best_profit
         log::info!(
             "Skipping subtree because upper_bound={} <= best_profit={}",
             upper_bound_profit,
-            calc_profit(&best_knapsack)
+            knapsack_profit(&best_knapsack)
         );
         return best_knapsack;
     }
 
     let (first, tail) = match items.split_first() {
         Some(x) => x,
-        // No profit can be reached
+        // We are at a leaf in the enumeration tree. No profit can be reached
         None => return Vec::new(),
     };
 
+    // Calculate the reachable profit if we exclude the first item
     log::info!("Exclude item id={}", first.deref().borrow().id);
     let knapsack_exclude_first =
         branch_and_bound_recursive(tail, weight_limit, fixed_items, &best_knapsack);
     // Update best_knapsack if a better knapsack was found in the excluding subtree
-    if calc_profit(&knapsack_exclude_first) > calc_profit(&best_knapsack) {
+    if knapsack_profit(&knapsack_exclude_first) > knapsack_profit(&best_knapsack) {
         best_knapsack = knapsack_exclude_first;
     }
 
+    // Calculate the reachable profit if we include the first item
     log::info!("Include item id={}", first.deref().borrow().id);
     let knapsack_include_first = if weight_limit >= first.deref().borrow().weight {
         // weight_limit - first.weight is greater or equal 0
@@ -602,9 +616,8 @@ where
         log::info!("weight_limit would be negative");
         Vec::new()
     };
-
     // Update best_knapsack if a better knapsack was found in the including subtrees
-    if calc_profit(&knapsack_include_first) > calc_profit(&best_knapsack) {
+    if knapsack_profit(&knapsack_include_first) > knapsack_profit(&best_knapsack) {
         best_knapsack = knapsack_include_first;
     }
 
@@ -612,26 +625,11 @@ where
 }
 
 /// Calculates the total profit of all items.
-fn items_profit_sum<'a, ItemRef, Iter>(items: Iter) -> u64
+pub fn knapsack_profit<ItemRef>(items: &[&ItemRef]) -> u64
 where
-    ItemRef: 'a, // The items yielded by the iterator may life as long as this function
-    &'a ItemRef: Borrow<Item>, // The item types yielded by the iterator may be borrowed as items
-    Iter: IntoIterator<Item = &'a ItemRef>, // The iterator yields references to ItemRefs
+    ItemRef: Borrow<Item>,
 {
-    items.into_iter().map(|item| (&item).borrow().weight).sum()
-}
-
-/// Calculates the total effective profit of all items.
-fn packed_items_profit_sum<'a, IterItem, Iter>(items: Iter) -> Fraction
-where
-    IterItem: 'a,
-    IterItem: Borrow<Item>,
-    Iter: IntoIterator<Item = &'a PartialPackedItem<'a, IterItem>>,
-{
-    items
-        .into_iter()
-        .map(|item| item.borrow().effective_profit())
-        .sum()
+    items.iter().map(|&item| item.borrow().profit).sum()
 }
 
 /// Converts a [Fraction] into a u64 by removing the digits after the dot and parsing its string representation.

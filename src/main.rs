@@ -155,7 +155,7 @@ fn knapsack_branch_and_bound(cli_args: cli::KnapsackBranchBound) -> anyhow::Resu
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
     let knapsack = aud2::knapsack::branch_and_bound(&items, weight_limit);
     println!("Knapsack: {:#?}", knapsack);
-    /*println!(
+    println!(
         "Total profit: {}",
         knapsack.iter().map(|item| item.profit).sum::<u64>()
     );
@@ -163,7 +163,7 @@ fn knapsack_branch_and_bound(cli_args: cli::KnapsackBranchBound) -> anyhow::Resu
         "Total weight {} of allowed weight limit {}",
         knapsack.iter().map(|item| item.weight).sum::<u64>(),
         weight_limit
-    );*/
+    );
     Ok(())
 }
 
@@ -229,5 +229,8 @@ where
 
 /// Initialize the logger.
 fn init_logger() {
-    env_logger::init();
+    env_logger::builder()
+        // Disable timestamps, because they are not relevant for this app
+        .format_timestamp(None)
+        .init();
 }
