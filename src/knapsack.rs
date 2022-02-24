@@ -427,20 +427,42 @@ pub fn greedy_k<'a, ItemRef, ItemIter>(
 ) -> Vec<&'a ItemRef>
 where
     ItemRef: 'a + Borrow<Item>,
-    &'a ItemRef: Borrow<Item>,
+    // &'a ItemRef: Borrow<Item>,
     &'a ItemIter: IntoIterator<Item = &'a ItemRef>,
 {
     (0..=k)
         // Get all combinations with 0 elements fixed, 1 element fixed, 2 elements fixed, ..., k elements fixed
         .map(|k_| Itertools::combinations(items.into_iter(), k_))
         .flatten()
+        .inspect(|fixed_items| {
+            log::info!("-- New round --");
+            let fixed_weight = fixed_items
+                .iter()
+                .map(|&item| item.borrow().weight)
+                .sum::<u64>();
+            let remaining_weight = (weight_limit as i64) - (fixed_weight as i64);
+            log::info!(
+                "fixed={:?}, weight={}, profit={}, remaining_weight={}",
+                fixed_items
+                    .iter()
+                    .map(|&item| item.borrow().id)
+                    .collect::<Vec<usize>>(),
+                fixed_weight,
+                fixed_items
+                    .iter()
+                    .map(|&item| item.borrow().profit)
+                    .sum::<u64>(),
+                remaining_weight
+            );
+        })
         // Remove combinations with too much weight
         .filter(|fixed_items| {
-            let total_weight: u64 = fixed_items
-                .iter()
-                .map(|item| item.deref().borrow().weight)
-                .sum();
-            total_weight < weight_limit
+            let fixed_weight: u64 = fixed_items.iter().map(|&item| item.borrow().weight).sum();
+            let fixed_weight_ok = fixed_weight <= weight_limit;
+            if fixed_weight_ok.not() {
+                log::info!("Skipping, because illegal fixed items",);
+            }
+            fixed_weight_ok
         })
         // Perform a normal integer greedy on the remaining items
         .map(|fixed_items| {
@@ -456,27 +478,44 @@ where
             let remaining_weight_limit = weight_limit - fixed_items_weight;
             let remaining_greedy = integer_greedy(remaining_items, remaining_weight_limit);
             let knapsack = {
-                let mut knapsack = remaining_greedy;
+                let mut knapsack = remaining_greedy.clone();
                 knapsack.extend_from_slice(fixed_items.as_slice());
                 knapsack
             };
             log::info!(
-                "Knapsack={:?}, fixed={:?}, fixed_weight={}, remaining_weight={}",
+                "greedy={:?}, weight={}, profit={}",
+                remaining_greedy
+                    .iter()
+                    .map(|&item| item.borrow().id)
+                    .collect::<Vec<usize>>(),
+                remaining_greedy
+                    .iter()
+                    .map(|&item| item.borrow().weight)
+                    .sum::<u64>(),
+                remaining_greedy
+                    .iter()
+                    .map(|&item| item.borrow().profit)
+                    .sum::<u64>()
+            );
+            log::info!(
+                "Total knapsack={:?}, profit={}, weight={}",
                 knapsack
                     .iter()
-                    .map(|item| item.borrow().id)
+                    .map(|&item| item.borrow().id)
                     .collect::<Vec<usize>>(),
-                fixed_items
+                knapsack
                     .iter()
-                    .map(|item| item.borrow().id)
-                    .collect::<Vec<usize>>(),
-                fixed_items_weight,
-                remaining_weight_limit
+                    .map(|&item| item.borrow().profit)
+                    .sum::<u64>(),
+                knapsack
+                    .iter()
+                    .map(|&item| item.borrow().weight)
+                    .sum::<u64>(),
             );
             knapsack
         })
         // Get the best knapsack, i.e. the selection with the most profit
-        .max_by_key(|items| items.iter().map(|&item| item.borrow().profit).sum::<u64>())
+        .max_by_key(|knapsack| knapsack_profit(knapsack))
         // Get either the result or an empty vec
         .unwrap_or_default()
 }

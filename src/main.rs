@@ -3,7 +3,7 @@ mod cli;
 use crate::cli::{CliArgs, CliCommands, KnapsackFractionalGreedy};
 use anyhow::Context;
 use aud2::knapsack::{Item, PartialPackedItem};
-use aud2::subset_sum::{subset_sum_full_bool_table, subset_sum_row_sum_set};
+use aud2::subset_sum::{subset_sum_set, subset_sum_vec};
 use fraction::Fraction;
 use std::fs;
 
@@ -65,23 +65,25 @@ fn knapsack_fractional_greedy_cli(cli_args: cli::KnapsackFractionalGreedy) -> an
 
 /// CLI wrapper for [subset_sum_row_sum_set].
 fn subset_sum_row_set_cli(cli_args: cli::SubsetSumRowSet) -> anyhow::Result<()> {
-    let cli::SubsetSumRowSet { numbers } = cli_args;
+    let cli::SubsetSumRowSet {
+        numbers,
+        sum: limit,
+    } = cli_args;
     println!("Input numbers: {:?}", numbers);
-    let table = subset_sum_row_sum_set(&numbers);
-    for (i, row) in table.iter().enumerate() {
-        println!("i={}: {:?}", i, row);
-    }
+    let reachable = subset_sum_set(&numbers, limit);
+    println!("Sum {} reachable: {}", limit, reachable);
     Ok(())
 }
 
 /// CLI wrapper for [subset_sum_full_bool_table].
 fn subset_sum_full_table_cli(cli_args: cli::SubsetSumFullTable) -> anyhow::Result<()> {
-    let cli::SubsetSumFullTable { numbers } = cli_args;
+    let cli::SubsetSumFullTable {
+        numbers,
+        sum: limit,
+    } = cli_args;
     println!("Input numbers: {:?}", numbers);
-    let table = subset_sum_full_bool_table(&numbers);
-    for row in table {
-        println!("{:?}", row);
-    }
+    let reachable = subset_sum_vec(&numbers, limit);
+    println!("Sum {} reachable: {}", limit, reachable);
     Ok(())
 }
 

@@ -98,6 +98,10 @@ pub(crate) struct KnapsackGreedyK {
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "subsum-row")]
 pub(crate) struct SubsetSumRowSet {
+    /// sum that should be reached.
+    #[argh(positional)]
+    pub(crate) sum: u64,
+
     /// numbers of the subset sum instance.
     #[argh(positional)]
     pub(crate) numbers: Vec<u64>,
@@ -107,6 +111,10 @@ pub(crate) struct SubsetSumRowSet {
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "subsum-full")]
 pub(crate) struct SubsetSumFullTable {
+    /// sum that should be reached.
+    #[argh(positional)]
+    pub(crate) sum: u64,
+
     /// numbers of the subset sum instance.
     #[argh(positional)]
     pub(crate) numbers: Vec<u64>,
