@@ -48,17 +48,21 @@ fn knapsack_fractional_greedy_cli(cli_args: cli::KnapsackFractionalGreedy) -> an
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
 
     let chosen_items = aud2::knapsack::fractional_greedy(&items, weight_capacity);
+    println!("Knapsack:");
     for chosen_item in &chosen_items {
         println!(
-            "id={:<2} x={:<3}",
-            chosen_item.item.id, chosen_item.take_portion
+            "id={:<2} take_ratio={:<3}",
+            chosen_item.item.id, chosen_item.take_ratio
         );
     }
     let total_profit: Fraction = chosen_items
         .iter()
         .map(PartialPackedItem::effective_profit)
         .sum();
-    println!("total_profit={}", total_profit);
+    println!(
+        "total_profit={} = approx. {:.3}",
+        total_profit, total_profit
+    );
 
     Ok(())
 }
@@ -98,7 +102,11 @@ fn knapsack_dynamic_programming_cli(
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
     let knapsack = aud2::knapsack::dynamic_programming(&items, weight_limit);
-    println!("Knapsack: {:#?}", knapsack);
+    println!("Knapsack:");
+    println!(
+        "id's: {:?}",
+        knapsack.iter().map(|item| item.id).collect::<Vec<_>>()
+    );
     println!(
         "Total profit: {}",
         knapsack.iter().map(|item| item.profit).sum::<u64>()
@@ -120,7 +128,11 @@ fn knapsack_integer_greedy_cli(cli_args: cli::KnapsackIntegerGreedy) -> anyhow::
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
     let knapsack = aud2::knapsack::integer_greedy(&items, weight_limit);
-    println!("Knapsack: {:#?}", knapsack);
+    println!("Knapsack:");
+    println!(
+        "id's: {:?}",
+        knapsack.iter().map(|item| item.id).collect::<Vec<_>>()
+    );
     Ok(())
 }
 
@@ -134,7 +146,11 @@ fn knapsack_greedy_k_cli(cli_args: cli::KnapsackGreedyK) -> anyhow::Result<()> {
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
     let knapsack = aud2::knapsack::greedy_k(&items, weight_limit, k);
-    println!("Knapsack: {:#?}", knapsack);
+    println!("Knapsack:");
+    println!(
+        "id's: {:?}",
+        knapsack.iter().map(|item| item.id).collect::<Vec<_>>()
+    );
     println!(
         "Total profit: {}",
         knapsack.iter().map(|item| item.profit).sum::<u64>()
@@ -156,7 +172,11 @@ fn knapsack_branch_and_bound(cli_args: cli::KnapsackBranchBound) -> anyhow::Resu
     } = cli_args;
     let items: Vec<Item> = read_csv(&items_csv, flipped_csv).context("Read items")?;
     let knapsack = aud2::knapsack::branch_and_bound(&items, weight_limit);
-    println!("Knapsack: {:#?}", knapsack);
+    println!("Knapsack:");
+    println!(
+        "id's: {:?}",
+        knapsack.iter().map(|item| item.id).collect::<Vec<_>>()
+    );
     println!(
         "Total profit: {}",
         knapsack.iter().map(|item| item.profit).sum::<u64>()

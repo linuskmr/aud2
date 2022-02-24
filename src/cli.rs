@@ -27,7 +27,7 @@ pub(crate) enum CliCommands {
 #[argh(subcommand, name = "frac-ks")]
 pub(crate) struct KnapsackFractionalGreedy {
     /// path to a csv file with the input elements (id, weight, profit).
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) items_csv: String,
 
     /// enable this flag if your CSV is written from left to right.
@@ -35,7 +35,7 @@ pub(crate) struct KnapsackFractionalGreedy {
     pub(crate) flipped_csv: bool,
 
     /// maximum weight of the knapsack.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) weight_limit: u64,
 }
 
@@ -44,7 +44,7 @@ pub(crate) struct KnapsackFractionalGreedy {
 #[argh(subcommand, name = "ks-dp")]
 pub(crate) struct KnapsackDynamicProgramming {
     /// path to a csv file with the input elements (id, weight, profit).
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) items_csv: String,
 
     /// enable this flag if your CSV is written from left to right.
@@ -52,7 +52,7 @@ pub(crate) struct KnapsackDynamicProgramming {
     pub(crate) flipped_csv: bool,
 
     /// maximum weight of the knapsack.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) weight_limit: u64,
 }
 
@@ -61,7 +61,7 @@ pub(crate) struct KnapsackDynamicProgramming {
 #[argh(subcommand, name = "ks-bb")]
 pub(crate) struct KnapsackBranchBound {
     /// path to a csv file with the input elements (id, weight, profit).
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) items_csv: String,
 
     /// enable this flag if your CSV is written from left to right.
@@ -69,7 +69,7 @@ pub(crate) struct KnapsackBranchBound {
     pub(crate) flipped_csv: bool,
 
     /// maximum weight of the knapsack.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) weight_limit: u64,
 }
 
@@ -78,7 +78,7 @@ pub(crate) struct KnapsackBranchBound {
 #[argh(subcommand, name = "ks-greedyk")]
 pub(crate) struct KnapsackGreedyK {
     /// path to a csv file with the input elements (id, weight, profit).
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) items_csv: String,
 
     /// enable this flag if your CSV is written from left to right.
@@ -86,11 +86,11 @@ pub(crate) struct KnapsackGreedyK {
     pub(crate) flipped_csv: bool,
 
     /// maximum weight of the knapsack.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) weight_limit: u64,
 
     /// number of fixed items.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) k: usize,
 }
 
@@ -99,10 +99,10 @@ pub(crate) struct KnapsackGreedyK {
 #[argh(subcommand, name = "subsum-row")]
 pub(crate) struct SubsetSumRowSet {
     /// sum that should be reached.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) sum: u64,
 
-    /// numbers of the subset sum instance.
+    /// comma seperated list of numbers.
     #[argh(positional)]
     pub(crate) numbers: Vec<u64>,
 }
@@ -112,10 +112,10 @@ pub(crate) struct SubsetSumRowSet {
 #[argh(subcommand, name = "subsum-full")]
 pub(crate) struct SubsetSumFullTable {
     /// sum that should be reached.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) sum: u64,
 
-    /// numbers of the subset sum instance.
+    /// comma seperated list of numbers.
     #[argh(positional)]
     pub(crate) numbers: Vec<u64>,
 }
@@ -125,7 +125,7 @@ pub(crate) struct SubsetSumFullTable {
 #[argh(subcommand, name = "ks-ig")]
 pub(crate) struct KnapsackIntegerGreedy {
     /// path to a csv file with the input elements (id, weight, profit).
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) items_csv: String,
 
     /// enable this flag if your CSV is written from left to right.
@@ -133,6 +133,6 @@ pub(crate) struct KnapsackIntegerGreedy {
     pub(crate) flipped_csv: bool,
 
     /// maximum weight of the knapsack.
-    #[argh(positional)]
+    #[argh(option)]
     pub(crate) weight_limit: u64,
 }

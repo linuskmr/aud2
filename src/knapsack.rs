@@ -75,7 +75,7 @@ where
     /// The original item.
     pub item: &'a ItemRef,
     /// A fraction indicating how much of the item was put into the knapsack.
-    pub take_portion: Fraction,
+    pub take_ratio: Fraction,
 }
 
 impl<'a, ItemRef> PartialPackedItem<'a, ItemRef>
@@ -84,12 +84,12 @@ where
 {
     /// Calculates the weight this item weights considering its take_fraction, i.e. partial packed items.
     pub fn effective_weight(&self) -> Fraction {
-        Fraction::from(self.item.borrow().weight) * self.take_portion
+        Fraction::from(self.item.borrow().weight) * self.take_ratio
     }
 
     /// Calculates the profit this items gives considering its take_fraction, i.e partial packed items.
     pub fn effective_profit(&self) -> Fraction {
-        Fraction::from(self.item.borrow().profit) * self.take_portion
+        Fraction::from(self.item.borrow().profit) * self.take_ratio
     }
 }
 
@@ -188,7 +188,7 @@ where
         // Add item to knapsack
         let knapsack_item = PartialPackedItem {
             item: *new_item,
-            take_portion: take_fraction,
+            take_ratio: take_fraction,
         };
         knapsack.push(knapsack_item);
 

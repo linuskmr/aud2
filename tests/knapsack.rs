@@ -91,31 +91,31 @@ fn test_fractional_greedy() {
     let expected_chosen_items = vec![
         PartialPackedItem {
             item: &ITEMS[5],
-            take_portion: 1.0.into(),
+            take_ratio: 1.0.into(),
         },
         PartialPackedItem {
             item: &ITEMS[3],
-            take_portion: 1.0.into(),
+            take_ratio: 1.0.into(),
         },
         PartialPackedItem {
             item: &ITEMS[12],
-            take_portion: 1.0.into(),
+            take_ratio: 1.0.into(),
         },
         PartialPackedItem {
             item: &ITEMS[11],
-            take_portion: 1.0.into(),
+            take_ratio: 1.0.into(),
         },
         PartialPackedItem {
             item: &ITEMS[2],
-            take_portion: 1.0.into(),
+            take_ratio: 1.0.into(),
         },
         PartialPackedItem {
             item: &ITEMS[8],
-            take_portion: 1.0.into(),
+            take_ratio: 1.0.into(),
         },
         PartialPackedItem {
             item: &ITEMS[14],
-            take_portion: Fraction::new(6u64, 10u64),
+            take_ratio: Fraction::new(6u64, 10u64),
         },
     ];
     assert_eq!(actual_chosen_items, expected_chosen_items);
