@@ -133,6 +133,15 @@ fn knapsack_integer_greedy_cli(cli_args: cli::KnapsackIntegerGreedy) -> anyhow::
         "id's: {:?}",
         knapsack.iter().map(|item| item.id).collect::<Vec<_>>()
     );
+    println!(
+        "Total profit: {}",
+        knapsack.iter().map(|item| item.profit).sum::<u64>()
+    );
+    println!(
+        "Total weight {} of allowed weight limit {}",
+        knapsack.iter().map(|item| item.weight).sum::<u64>(),
+        weight_limit
+    );
     Ok(())
 }
 
