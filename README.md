@@ -52,6 +52,16 @@ The binary part provides an executable command line program.
 aud2 = { git = "https://github.com/linuskmr/aud2" }
 ```
 
+## Examples
+
+The `examples/` directory provides examples for using the aud2 command line program.
+
+`examples/fractional_knapsack.rs` shows how to use aud2 for solving knapsack problems.
+
+`examples/subset_sum.rs` shows how to use aud2 for solving knapsack problems.
+
+You can run the examples via `cargo run --example subset_sum` or `cargo run --example fractional_knapsack` respectively.
+
 ## Documentation
 
 ```
